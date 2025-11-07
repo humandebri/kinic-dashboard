@@ -9,6 +9,8 @@ use icrc_ledger_types::{
 };
 use thiserror::Error;
 
+use crate::clients::{LAUNCHER_CANISTER, LEDGER_CANISTER};
+
 const DEFAULT_MEMORY_ALLOCATION: u64 = 1024;
 const APPROVAL_TTL_NS: u64 = 10 * 60 * 1_000_000_000;
 
@@ -19,11 +21,11 @@ pub struct LauncherClient {
 }
 
 impl LauncherClient {
-    pub fn new(agent: Agent, launcher_id: Principal, ledger_id: Principal) -> Self {
+    pub fn new(agent: Agent) -> Self {
         Self {
             agent,
-            launcher_id,
-            ledger_id,
+            launcher_id: Principal::from_text(LAUNCHER_CANISTER).unwrap(),
+            ledger_id: Principal::from_text(LEDGER_CANISTER).unwrap(),
         }
     }
 
@@ -85,6 +87,19 @@ impl LauncherClient {
             .context("Failed to decode deploy_instance response")?;
         Ok(result?)
     }
+
+    pub async fn list_memories(&self) -> Result<Vec<State>> {
+        let response = self
+            .agent
+            .update(&self.launcher_id, "list_instance")
+            .call_and_wait()
+            .await
+            .context("Failed to call deploy_instance")?;
+
+        let result =
+            Decode!(&response, Vec<State>).context("Failed to decode deploy_instance response")?;
+        Ok(result)
+    }
 }
 
 fn encode_deploy_args(name: &str, description: &str) -> Result<Vec<u8>> {
@@ -117,4 +132,14 @@ enum DeployInstanceError {
 
     #[error("already running")]
     AlreadyRunning,
+}
+
+#[derive(CandidType, candid::Deserialize, Clone, Debug)]
+pub enum State {
+    Empty(String),
+    Pending(String),
+    Creation(String),
+    Installation(Principal, String),
+    SettingUp(Principal),
+    Running(Principal),
 }

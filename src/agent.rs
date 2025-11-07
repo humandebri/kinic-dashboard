@@ -7,8 +7,8 @@ use ic_agent::{
     identity::{BasicIdentity, Secp256k1Identity},
 };
 
-const KEYRING_SERVICE_NAME: &str = "internet_computer_identities";
-const KEYRING_IDENTITY_PREFIX: &str = "internet_computer_identity_";
+pub const KEYRING_SERVICE_NAME: &str = "internet_computer_identities";
+pub const KEYRING_IDENTITY_PREFIX: &str = "internet_computer_identity_";
 
 #[derive(Clone)]
 pub struct AgentFactory {
