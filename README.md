@@ -66,7 +66,16 @@ cargo run -- --identity alice insert \
   --tag diary_7th_Nov_2025
 ```
 
-This calls the embedding API’s `/late-chunking` endpoint, then stores each chunk via the memory canister’s `insert` method.
+You can also read the input from disk:
+
+```bash
+cargo run -- --identity alice insert \
+  --memory-id yta6k-5x777-77774-aaaaa-cai \
+  --file-path ./notes/weekly.md \
+  --tag diary_weekly
+```
+
+Exactly one of `--text` or `--file-path` must be supplied. The command calls the embedding API’s `/late-chunking` endpoint, then stores each chunk via the memory canister’s `insert` method.
 
 ### Search example
 

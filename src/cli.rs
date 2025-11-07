@@ -1,4 +1,6 @@
-use clap::{Args, Parser, Subcommand};
+use std::path::PathBuf;
+
+use clap::{ArgGroup, Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -58,6 +60,7 @@ pub struct CreateArgs {
 pub struct ListArgs {}
 
 #[derive(Args, Debug)]
+#[command(group = ArgGroup::new("insert_input").required(true).args(["text", "file_path"]))]
 pub struct InsertArgs {
     #[arg(
         long,
@@ -66,8 +69,15 @@ pub struct InsertArgs {
     )]
     pub memory_id: String,
 
-    #[arg(long, required = true, help = "Markdown text to embed and insert")]
-    pub text: String,
+    #[arg(long, help = "Markdown text to embed and insert")]
+    pub text: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Read markdown content from a file (conflicts with --text)"
+    )]
+    pub file_path: Option<PathBuf>,
 
     #[arg(long, required = true, help = "Tag metadata stored alongside the text")]
     pub tag: String,
