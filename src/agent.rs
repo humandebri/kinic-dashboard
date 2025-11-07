@@ -1,0 +1,73 @@
+use std::io::Cursor;
+
+use anyhow::Result;
+use ic_agent::{
+    export::reqwest::Url,
+    identity::{BasicIdentity, Secp256k1Identity},
+    Agent,
+};
+
+const KEYRING_SERVICE_NAME: &str = "internet_computer_identities";
+const KEYRING_IDENTITY_PREFIX: &str = "internet_computer_identity_";
+
+#[derive(Clone)]
+pub struct AgentFactory {
+    use_mainnet: bool,
+    identity_suffix: String,
+}
+
+impl AgentFactory {
+    pub fn new(use_mainnet: bool, identity_suffix: impl Into<String>) -> Self {
+        Self {
+            use_mainnet,
+            identity_suffix: identity_suffix.into(),
+        }
+    }
+
+    pub async fn build(&self) -> Result<Agent> {
+        let pem_bytes = load_pem_from_keyring(&self.identity_suffix)?;
+        let pem_text = String::from_utf8(pem_bytes.clone())?;
+        let pem = pem::parse(pem_text.as_bytes())?;
+
+        let builder = match pem.tag() {
+            "PRIVATE KEY" => {
+                let identity = BasicIdentity::from_pem(Cursor::new(pem_text.clone()))?;
+                Agent::builder().with_identity(identity)
+            }
+            "EC PRIVATE KEY" => {
+                let identity = Secp256k1Identity::from_pem(Cursor::new(pem_text.clone()))?;
+                Agent::builder().with_identity(identity)
+            }
+            _ => anyhow::bail!("Unsupported PEM tag: {}", pem.tag()),
+        };
+
+        let url = if self.use_mainnet {
+            "https://ic0.app"
+        } else {
+            "http://127.0.0.1:4943"
+        };
+        let url = Url::parse(url)?;
+        let agent = builder.with_url(url).build()?;
+
+        if !self.use_mainnet {
+            agent.fetch_root_key().await?;
+        }
+        Ok(agent)
+    }
+}
+
+fn load_pem_from_keyring(suffix: &str) -> anyhow::Result<Vec<u8>> {
+    let account = format!("{KEYRING_IDENTITY_PREFIX}{suffix}");
+    let entry = keyring::Entry::new(KEYRING_SERVICE_NAME, &account)?;
+    let encoded_pem = entry.get_password().map_err(|e| {
+        let msg = format!("{e:?}");
+        if msg.contains("-67671") || msg.contains("errSecInteractionNotAllowed") {
+            anyhow::anyhow!(
+                "x86のdfxを使うと、Always Allow Listへの上書きがされてしまうOSのバグがあるようなので、arm64向けのdfxを使う必要があります。"
+            )
+        } else {
+            anyhow::anyhow!("Keychain 読み出しに失敗: {msg}")
+        }
+    })?;
+    Ok(hex::decode(encoded_pem)?)
+}
