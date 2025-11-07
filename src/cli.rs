@@ -28,7 +28,7 @@ pub struct GlobalOpts {
     #[arg(
         long,
         required = true,
-        help = "Identity suffix used to load credentials from the system keyring"
+        help = "Dfx identity name used to load credentials from the system keyring"
     )]
     pub identity: String,
 }

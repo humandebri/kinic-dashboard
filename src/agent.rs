@@ -63,7 +63,7 @@ fn load_pem_from_keyring(suffix: &str) -> anyhow::Result<Vec<u8>> {
         let msg = format!("{e:?}");
         if msg.contains("-67671") || msg.contains("errSecInteractionNotAllowed") {
             anyhow::anyhow!(
-                "x86のdfxを使うと、Always Allow Listへの上書きがされてしまうOSのバグがあるようなので、arm64向けのdfxを使う必要があります。"
+                "macOS keychain returned -67671 (errSecInteractionNotAllowed). This is a known bug when using the x86 build of dfx; please install and use the arm64 build instead."
             )
         } else {
             anyhow::anyhow!("Keychain 読み出しに失敗: {msg}")
