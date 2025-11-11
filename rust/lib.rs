@@ -1,5 +1,5 @@
-mod agent;
-mod cli;
+pub mod agent;
+pub mod cli;
 pub(crate) mod clients;
 mod commands;
 mod embedding;

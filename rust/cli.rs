@@ -2,6 +2,50 @@ use std::path::PathBuf;
 
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
+use anyhow::Result;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::fmt;
+
+// use crate::{
+//     agent::AgentFactory,
+//     cli::Cli,
+//     commands::{CommandContext, run_command},
+// };
+use std::process::ExitCode;
+
+use crate::{
+    agent::AgentFactory,
+    commands::{CommandContext, run_command},
+};
+
+#[tokio::main]
+async fn main() -> ExitCode {
+    let _ = dotenvy::dotenv();
+    if let Err(e) = crate::run().await {
+        eprintln!("{e:?}");
+        return ExitCode::from(1);
+    }
+    ExitCode::SUCCESS
+}
+
+pub async fn run() -> Result<()> {
+    let cli = Cli::parse();
+
+    let max = match cli.global.verbose {
+        0 => LevelFilter::INFO,
+        1 => LevelFilter::DEBUG,
+        _ => LevelFilter::TRACE,
+    };
+
+    fmt().with_max_level(max).without_time().try_init().ok();
+
+    let context = CommandContext {
+        agent_factory: AgentFactory::new(cli.global.ic, cli.global.identity.clone()),
+    };
+
+    run_command(cli.command, context).await
+}
+
 #[derive(Parser, Debug)]
 #[command(
     name = "kinic-cli",
