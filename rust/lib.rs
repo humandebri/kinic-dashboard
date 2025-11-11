@@ -7,6 +7,7 @@ mod embedding;
 
 use anyhow::Result;
 use clap::Parser;
+use pyo3::pymodule;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt;
 
@@ -32,4 +33,14 @@ pub async fn run() -> Result<()> {
     };
 
     run_command(cli.command, context).await
+}
+
+#[pymodule]
+mod _lib {
+    use pyo3::pyfunction;
+
+    #[pyfunction]
+    pub fn greet() -> String {
+        "hello!".to_string()
+    }
 }
