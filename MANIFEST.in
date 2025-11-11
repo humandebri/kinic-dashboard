@@ -1,0 +1,12 @@
+include Cargo.toml
+include Cargo.lock
+include README.md
+include pyproject.toml
+recursive-include rust *.rs
+recursive-include python *.py
+prune target
+
+# Exclude common junk
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so

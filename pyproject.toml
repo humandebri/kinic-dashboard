@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=65", "setuptools-rust>=1.8", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinic-py"
+version = "0.1.0"
+description = "Python bindings for the Kinic CLI Rust core"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "Kinic" }]
+keywords = ["kinic", "internet-computer", "cli", "bindings"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/kiniclabs/kinic-cli"
+Issues = "https://github.com/kiniclabs/kinic-cli/issues"
+
+[tool.setuptools]
+package-dir = { "" = "python" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["python"]
+exclude = ["tests"]
+
+[[tool.setuptools-rust.ext-modules]]
+target = "kinic_py._lib"
+path = "Cargo.toml"
+binding = "PyO3"
