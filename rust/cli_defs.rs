@@ -43,6 +43,10 @@ pub enum Command {
     List(ListArgs),
     #[command(about = "Insert text into an existing memory canister")]
     Insert(InsertArgs),
+    #[command(about = "Insert a PDF (converted to markdown) into an existing memory canister")]
+    InsertPdf(InsertPdfArgs),
+    #[command(about = "Convert a PDF to markdown and print it (no insert)")]
+    ConvertPdf(ConvertPdfArgs),
     #[command(about = "Search within a memory canister using embeddings")]
     Search(SearchArgs),
 }
@@ -81,6 +85,28 @@ pub struct InsertArgs {
 
     #[arg(long, required = true, help = "Tag metadata stored alongside the text")]
     pub tag: String,
+}
+
+#[derive(Args, Debug)]
+pub struct InsertPdfArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the target memory canister"
+    )]
+    pub memory_id: String,
+
+    #[arg(long, value_name = "PATH", required = true, help = "PDF file to convert to markdown and insert")]
+    pub file_path: PathBuf,
+
+    #[arg(long, required = true, help = "Tag metadata stored alongside the text")]
+    pub tag: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ConvertPdfArgs {
+    #[arg(long, value_name = "PATH", required = true, help = "PDF file to convert to markdown")]
+    pub file_path: PathBuf,
 }
 
 #[derive(Args, Debug)]

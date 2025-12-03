@@ -9,6 +9,8 @@ from .memories import (
     insert_file,
     insert_markdown,
     insert_markdown_file,
+    insert_pdf,
+    insert_pdf_file,
     insert_text,
     list_memories,
     search_memories,
@@ -20,10 +22,12 @@ __all__ = [
     "insert_file",
     "insert_markdown",
     "insert_markdown_file",
+    "insert_pdf_file",
+    "insert_pdf",
     "insert_text",
     "list_memories",
     "search_memories",
     "native",
     "__version__",
 ]
-__version__ = "0.1.1"
+__version__ = "0.1.2"

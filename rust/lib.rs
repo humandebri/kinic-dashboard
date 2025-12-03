@@ -55,6 +55,7 @@ fn _lib(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_memory, m)?)?;
     m.add_function(wrap_pyfunction!(list_memories, m)?)?;
     m.add_function(wrap_pyfunction!(insert_memory, m)?)?;
+    m.add_function(wrap_pyfunction!(insert_memory_pdf, m)?)?;
     m.add_function(wrap_pyfunction!(search_memories, m)?)?;
     Ok(())
 }
@@ -117,6 +118,26 @@ fn insert_memory(
         tag.to_string(),
         text.map(|t| t.to_string()),
         path,
+    ))
+}
+
+#[cfg(feature = "python-bindings")]
+#[pyfunction]
+#[pyo3(signature = (identity, memory_id, tag, file_path, ic=None))]
+fn insert_memory_pdf(
+    identity: &str,
+    memory_id: &str,
+    tag: &str,
+    file_path: &str,
+    ic: Option<bool>,
+) -> PyResult<usize> {
+    let ic = ic.unwrap_or(false);
+    block_on_py(python::insert_memory_pdf(
+        ic,
+        identity.to_string(),
+        memory_id.to_string(),
+        tag.to_string(),
+        PathBuf::from(file_path),
     ))
 }
 

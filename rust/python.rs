@@ -10,6 +10,7 @@ use crate::{
         launcher::{LauncherClient, State},
         memory::MemoryClient,
     },
+    commands::convert_pdf,
     embedding::{fetch_embedding, late_chunking},
 };
 
@@ -65,6 +66,25 @@ pub(crate) async fn insert_memory(
     }
 
     Ok(chunk_count)
+}
+
+pub(crate) async fn insert_memory_pdf(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    tag: String,
+    file_path: PathBuf,
+) -> Result<usize> {
+    let markdown = convert_pdf::pdf_to_markdown(&file_path)?;
+    insert_memory(
+        use_mainnet,
+        identity,
+        memory_id,
+        tag,
+        Some(markdown),
+        None,
+    )
+    .await
 }
 
 pub(crate) async fn search_memories(

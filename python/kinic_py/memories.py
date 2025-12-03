@@ -33,6 +33,15 @@ class KinicMemories:
         """Insert markdown loaded from disk."""
         return insert_markdown_file(self.identity, memory_id, tag, path, ic=self.ic)
 
+    def insert_pdf_file(self, memory_id: str, tag: str, path: str) -> int:
+        """Convert a PDF to markdown and insert it."""
+        return insert_pdf_file(self.identity, memory_id, tag, path, ic=self.ic)
+
+    def insert_pdf(self, memory_id: str, tag: str, path: str) -> int:
+        """Deprecated: use insert_pdf_file instead."""
+        warnings.warn("insert_pdf is deprecated; use insert_pdf_file", DeprecationWarning, stacklevel=2)
+        return self.insert_pdf_file(memory_id, tag, path)
+
     def insert_text(self, memory_id: str, tag: str, text: str) -> int:
         """Deprecated: use insert_markdown instead."""
         warnings.warn("insert_text is deprecated; use insert_markdown", DeprecationWarning, stacklevel=2)
@@ -82,6 +91,29 @@ def insert_markdown_file(
     ic: bool | None = None,
 ) -> int:
     return native.insert_memory(identity, memory_id, tag, file_path=path, ic=ic)
+
+
+def insert_pdf_file(
+    identity: str,
+    memory_id: str,
+    tag: str,
+    path: str,
+    *,
+    ic: bool | None = None,
+) -> int:
+    return native.insert_memory_pdf(identity, memory_id, tag, path, ic=ic)
+
+
+def insert_pdf(
+    identity: str,
+    memory_id: str,
+    tag: str,
+    path: str,
+    *,
+    ic: bool | None = None,
+) -> int:
+    warnings.warn("insert_pdf is deprecated; use insert_pdf_file", DeprecationWarning, stacklevel=2)
+    return insert_pdf_file(identity, memory_id, tag, path, ic=ic)
 
 
 def insert_text(
