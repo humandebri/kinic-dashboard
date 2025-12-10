@@ -49,6 +49,8 @@ pub enum Command {
     ConvertPdf(ConvertPdfArgs),
     #[command(about = "Search within a memory canister using embeddings")]
     Search(SearchArgs),
+    #[command(about = "Manage Kinic CLI configuration")]
+    Config(ConfigArgs),
 }
 
 #[derive(Args, Debug)]
@@ -120,4 +122,15 @@ pub struct SearchArgs {
 
     #[arg(long, required = true, help = "Query text to embed and search")]
     pub query: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ConfigArgs {
+    #[arg(
+        long,
+        value_names = ["USER_ID", "ROLE"],
+        num_args = 2,
+        help = "Add a user with role to the Kinic CLI config (placeholder)"
+    )]
+    pub add_user: Option<Vec<String>>,
 }
