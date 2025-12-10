@@ -4,7 +4,7 @@ set -e  # Stop script on errors
 echo Mint $2 KINIC to $1
 KINIC=$(( $2 * 100000000 ))
 
-dfx --identity default canister call icrc1_ledger_canister icrc1_transfer '
+dfx --identity default canister call 73mez-iiaaa-aaaaq-aaasq-cai icrc1_transfer '
 (
   record {
     25_979 = record {

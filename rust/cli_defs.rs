@@ -51,6 +51,10 @@ pub enum Command {
     Search(SearchArgs),
     #[command(about = "Manage Kinic CLI configuration")]
     Config(ConfigArgs),
+    #[command(about = "Update a memory canister instance")]
+    Update(UpdateArgs),
+    #[command(about = "Check KINIC token balance for the current identity")]
+    Balance(BalanceArgs),
 }
 
 #[derive(Args, Debug)]
@@ -128,9 +132,29 @@ pub struct SearchArgs {
 pub struct ConfigArgs {
     #[arg(
         long,
+        required = true,
+        help = "Principal of the target memory canister"
+    )]
+    pub memory_id: String,
+
+    #[arg(
+        long,
         value_names = ["USER_ID", "ROLE"],
         num_args = 2,
         help = "Add a user with role to the Kinic CLI config (placeholder)"
     )]
     pub add_user: Option<Vec<String>>,
 }
+
+#[derive(Args, Debug)]
+pub struct UpdateArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the target memory canister to update"
+    )]
+    pub memory_id: String,
+}
+
+#[derive(Args, Debug)]
+pub struct BalanceArgs {}

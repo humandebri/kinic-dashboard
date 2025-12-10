@@ -136,6 +136,23 @@ See `python/examples/insert_pdf_file.py` for a runnable script.
 
 ---
 
+## Update a memory canister (CLI)
+
+Trigger the launcher’s `update_instance` for a given memory id:
+```bash
+cargo run -- --identity <name> update \
+  --memory-id <memory canister id>
+```
+
+## Check token balance (CLI)
+
+Query the ledger for the current identity’s balance (base units):
+```bash
+cargo run -- --identity <name> balance
+```
+
+---
+
 ## API Reference
 
 ### Class: `KinicMemories`

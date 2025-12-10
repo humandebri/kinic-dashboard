@@ -104,6 +104,37 @@ cargo run -- --identity alice search \
 
 The CLI fetches an embedding for the query and prints the scored matches returned by the memory canister.
 
+### Manage config (add user)
+
+Grant a role for a user on a memory canister:
+
+```bash
+cargo run -- --identity alice config \
+  --memory-id yta6k-5x777-77774-aaaaa-cai \
+  --add-user <principal|anonymous> <admin|writer|reader>
+```
+
+Notes:
+- `anonymous` assigns the role to everyone; admin cannot be granted to `anonymous`.
+- Principals are validated; invalid text fails fast.
+
+### Update a memory canister instance
+
+Trigger the launcher’s `update_instance` for a given memory id:
+
+```bash
+cargo run -- --identity alice update \
+  --memory-id yta6k-5x777-77774-aaaaa-cai
+```
+
+### Check token balance
+
+Query the ledger for the current identity’s balance (base units):
+
+```bash
+cargo run -- --identity alice balance
+```
+
 ## Troubleshooting
 
 - **Replica already running**: stop lingering replicas with `dfx stop` before restarting.

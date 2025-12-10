@@ -30,6 +30,10 @@ impl LauncherClient {
         }
     }
 
+    pub fn launcher_id(&self) -> &Principal {
+        &self.launcher_id
+    }
+
     pub async fn fetch_deployment_price(&self) -> Result<Nat> {
         let response = self
             .agent
@@ -101,6 +105,22 @@ impl LauncherClient {
             Decode!(&response, Vec<State>).context("Failed to decode deploy_instance response")?;
         Ok(result)
     }
+
+    pub async fn update_instance(&self, instance_pid_str: &str) -> Result<()> {
+        let payload = encode_update_instance_args(instance_pid_str)?;
+        let response = self
+            .agent
+            .update(&self.launcher_id, "update_instance")
+            .with_arg(payload)
+            .call_and_wait()
+            .await
+            .context("Failed to call update_instance")?;
+
+        let result = Decode!(&response, std::result::Result<(), String>)
+            .context("Failed to decode update_instance response")?;
+
+        result.map_err(anyhow::Error::msg)
+    }
 }
 
 fn encode_deploy_args(name: &str, description: &str) -> Result<Vec<u8>> {
@@ -109,6 +129,10 @@ fn encode_deploy_args(name: &str, description: &str) -> Result<Vec<u8>> {
         "description": description})
     .to_string();
     Ok(candid::encode_args((payload, DEFAULT_VECTOR_DIM))?)
+}
+
+fn encode_update_instance_args(instance_pid_str: &str) -> Result<Vec<u8>> {
+    Ok(candid::encode_one(instance_pid_str)?)
 }
 
 #[derive(CandidType, Deserialize, Debug, Error)]

@@ -49,3 +49,7 @@ dfx deploy launcher --specified-id xfug4-5qaaa-aaaak-afowa-cai --argument='(vari
 # dfx canister call launcher change_key_id '("test_key_1")'
 dfx ledger fabricate-cycles --cycles 100T --canister $(dfx canister id launcher)
 
+dfx identity use $USER_NAME
+
+sh scripts/mint.sh $(dfx identity get-principal) 100
+

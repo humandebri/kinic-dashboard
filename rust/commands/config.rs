@@ -1,30 +1,35 @@
 use anyhow::{Context, Result, bail};
 use ic_agent::export::Principal;
-use tracing::warn;
+use tracing::info;
 
-use crate::cli::ConfigArgs;
+use crate::{
+    cli::ConfigArgs,
+    clients::memory::MemoryClient,
+};
 
 use super::CommandContext;
 
 pub async fn handle(args: ConfigArgs, _ctx: &CommandContext) -> Result<()> {
-    if let Some(values) = args.add_user {
-        let (user, role) = parse_add_user(values)?;
-        warn!(
-            user = ?user,
-            role = ?role,
-            "config command is not implemented yet"
-        );
-        println!("config command validated add-user input; no actions were performed.");
-    } else {
-        println!("config command is a placeholder; no actions were performed.");
-    }
-    Ok(())
-}
+    let Some(values) = args.add_user else {
+        bail!("config requires an operation; use --add-user <user_id> <role>");
+    };
 
-#[derive(Debug)]
-enum UserId {
-    Principal(Principal),
-    Anonymous,
+    let (principal, role) = parse_add_user(values)?;
+    let client = build_memory_client(&args.memory_id, _ctx).await?;
+
+    client
+        .add_new_user(principal, role.code())
+        .await
+        .context("Failed to add new user to memory canister")?;
+
+    info!(
+        canister_id = %client.canister_id(),
+        role = ?role,
+        "added user to memory canister"
+    );
+
+    println!("User added to memory canister with role {role:?}");
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -54,7 +59,7 @@ impl Role {
     }
 }
 
-fn parse_add_user(values: Vec<String>) -> Result<(UserId, Role)> {
+fn parse_add_user(values: Vec<String>) -> Result<(Principal, Role)> {
     if values.len() != 2 {
         bail!("--add-user expects exactly two values: <user_id> <role>");
     }
@@ -65,14 +70,23 @@ fn parse_add_user(values: Vec<String>) -> Result<(UserId, Role)> {
     let role = values.get(1).context("missing role value for --add-user")?;
 
     let user = if user_id == "anonymous" {
-        UserId::Anonymous
+        Principal::anonymous()
     } else {
-        let principal = Principal::from_text(user_id)
-            .with_context(|| format!("invalid principal text: {user_id}"))?;
-        UserId::Principal(principal)
+        Principal::from_text(user_id)
+            .with_context(|| format!("invalid principal text: {user_id}"))?
     };
 
     let role = Role::from_str(role)?;
 
+    if matches!(role, Role::Admin) && user_id == "anonymous" {
+        bail!("cannot grant admin role to anonymous");
+    }
+
     Ok((user, role))
+}
+
+async fn build_memory_client(id: &str, ctx: &CommandContext) -> Result<MemoryClient> {
+    let agent = ctx.agent_factory.build().await?;
+    let memory = Principal::from_text(id).context("Failed to parse canister id for config command")?;
+    Ok(MemoryClient::new(agent, memory))
 }
