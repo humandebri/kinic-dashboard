@@ -8,7 +8,7 @@ use tracing::info;
 use crate::{
     cli::AskAiArgs,
     clients::memory::MemoryClient,
-    embedding::{fetch_embedding, embedding_base_url},
+    embedding::{embedding_base_url, fetch_embedding},
 };
 
 use super::CommandContext;
@@ -43,8 +43,7 @@ pub async fn handle(args: AskAiArgs, ctx: &CommandContext) -> Result<()> {
         println!("\nLLM response: <not implemented>");
     } else {
         println!("- Generated prompt for LLM (showing top {limit} search results).");
-        println!("{prompt}");
-
+        println!("- Thinking...");
         let llm_response = call_llm(&prompt).await?;
         println!("\nLLM response:\n{llm_response}");
     }
@@ -98,7 +97,7 @@ async fn call_llm(prompt: &str) -> Result<String> {
         acc = body;
     }
 
-    Ok(acc)
+    Ok(extract_answer(&acc))
 }
 
 #[derive(Clone, Debug)]
@@ -126,7 +125,30 @@ struct ChatChunk {
     content: Option<String>,
 }
 
-fn build_prompt(query: &str, raw_results: &[(f32, String)], top_k: usize, language: &str) -> String {
+fn extract_answer(text: &str) -> String {
+    let lower = text.to_lowercase();
+    let start_tag = "<answer>";
+    let end_tag = "</answer>";
+
+    if let (Some(start), Some(end)) = (
+        lower.find(start_tag),
+        lower.find(end_tag).map(|i| i + end_tag.len()),
+    ) {
+        let content_start = start + start_tag.len();
+        let content_end = end - end_tag.len();
+        let snippet = &text[content_start..content_end];
+        snippet.trim().to_string()
+    } else {
+        text.trim().to_string()
+    }
+}
+
+fn build_prompt(
+    query: &str,
+    raw_results: &[(f32, String)],
+    top_k: usize,
+    language: &str,
+) -> String {
     let clipped_query = clip(query, MAX_QUERY_LEN);
 
     let docs: Vec<SearchResult> = raw_results
