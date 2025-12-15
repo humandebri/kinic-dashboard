@@ -82,6 +82,10 @@ class KinicMemories:
         """Trigger launcher update_instance for the memory canister."""
         update_instance(self.identity, memory_id, ic=self.ic)
 
+    def add_user(self, memory_id: str, user_id: str, role: str) -> None:
+        """Configure visibility: add a user (principal or 'anonymous') with a role (admin/writer/reader)."""
+        add_user(self.identity, memory_id, user_id, role, ic=self.ic)
+
 
 def create_memory(
     identity: str,
@@ -194,3 +198,14 @@ def get_balance(identity: str, *, ic: bool | None = None) -> tuple[int, float]:
 
 def update_instance(identity: str, memory_id: str, *, ic: bool | None = None) -> None:
     return native.update_instance(identity, memory_id, ic=ic)
+
+
+def add_user(
+    identity: str,
+    memory_id: str,
+    user_id: str,
+    role: str,
+    *,
+    ic: bool | None = None,
+) -> None:
+    return native.add_user(identity, memory_id, user_id, role, ic=ic)

@@ -148,6 +148,27 @@ pub(crate) async fn balance(use_mainnet: bool, identity: String) -> Result<(u128
     Ok((balance, kinic))
 }
 
+pub(crate) async fn add_user(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    user_id: String,
+    role: String,
+) -> Result<()> {
+    let factory = AgentFactory::new(use_mainnet, identity);
+    let agent = factory.build().await?;
+    let memory = Principal::from_text(memory_id).context("Failed to parse memory canister id")?;
+    let client = MemoryClient::new(agent, memory);
+
+    let role_code = parse_role(&role)?;
+    let principal = parse_principal(&user_id, role_code)?;
+
+    client
+        .add_new_user(principal, role_code)
+        .await
+        .context("Failed to add new user to memory canister")
+}
+
 pub(crate) async fn update_instance(
     use_mainnet: bool,
     identity: String,
@@ -187,6 +208,27 @@ fn resolve_insert_content(text: Option<String>, file_path: Option<PathBuf>) -> R
     }
 
     bail!("either text or file_path must be provided");
+}
+
+fn parse_role(role: &str) -> Result<u8> {
+    match role.to_lowercase().as_str() {
+        "admin" => Ok(1),
+        "writer" => Ok(2),
+        "reader" => Ok(3),
+        _ => bail!("role must be one of: admin, writer, reader"),
+    }
+}
+
+fn parse_principal(user_id: &str, role_code: u8) -> Result<Principal> {
+    if user_id == "anonymous" {
+        if role_code == 1 {
+            bail!("cannot grant admin role to anonymous");
+        }
+        Ok(Principal::anonymous())
+    } else {
+        Principal::from_text(user_id)
+            .with_context(|| format!("invalid principal text: {user_id}"))
+    }
 }
 
 fn state_principal(state: &State) -> Option<&Principal> {

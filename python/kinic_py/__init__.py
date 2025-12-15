@@ -17,6 +17,7 @@ from .memories import (
     ask_ai,
     get_balance,
     update_instance,
+    add_user,
 )
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "ask_ai",
     "get_balance",
     "update_instance",
+    "add_user",
     "native",
     "__version__",
 ]

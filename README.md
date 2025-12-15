@@ -110,13 +110,11 @@ for score, payload in km.search(memory_id, "Hello"):
     print(f"{score:.4f} -> {payload}")  # payload is the JSON stored in insert
 ```
 
-挿入するコンテンツには、tagを指定することができ、このtagごとにコンテンツの削除などを管理することができます。
+You can tag inserted content (e.g., `notes`, `summary_q1`) and manage it later by tag.
 
 ---
 
 ## Insert a PDF
-
-メモリにはMarkdownテキストだけではなく、pdf fileも挿入することができます。
 
 Python (preferred: `insert_pdf_file`):
 ```python
@@ -130,38 +128,55 @@ See `python/examples/insert_pdf_file.py` for a runnable script.
 
 ---
 
-## Ask AI (CLI; LLM placeholder)
+## Ask AI
 
-Runs a search and prepares context for an AI answer (LLM not implemented yet):
+Runs a search and prepares context for an AI answer. The CLI calls `/chat` at `EMBEDDING_API_ENDPOINT` (default `https://api.kinic.io`) and prints only the `<answer>` text.
 
 ```python
-(_, answer) = km.asi_ai(memory_id, "what is xxxx?")
-print(f"Answer: {answer}")
-for score, payload in km.search(memory_id, "Hello"):
-    print(f"{score:.4f} -> {payload}")  # payload is the JSON stored in insert
+prompt, answer = km.ask_ai(memory_id, "What did we say about quarterly goals?", top_k=3, language="en")
+print("Prompt:\n", prompt)
+print("Answer:\n", answer)
 ```
 
-- Prints the generated prompt and only the `<answer>` portion of the LLM response.
+- `km.ask_ai` returns `(prompt, answer)` where `answer` is the `<answer>` section from the chat response.
+- CLI usage: `cargo run -- --identity <name> ask-ai --memory-id <id> --query "<q>" --top-k 3`
 
 ---
 
-## Configuration Memory Visibility
+## Configure memory visibility
 
-メモリのVisibilityを設定することができます。例えば、あなたがマーケットに出品していているメモリがあり、メモリへの検索を許可することができます。
-対象は、全員か特定の人物のみ、を指定でき、readerもしくはwriterを設定することができます。
+You can control who can read or write a memory canister—either everyone (`anonymous`) or specific principals—and assign `reader` or `writer` roles.
 
-誰でもあなたのメモリを読めるようにしたければ、次のように設定してでください。
-
+Python example:
 ```python
-ここに、reader, anonymousで設定する例を入れる
+from kinic_py import KinicMemories
+
+km = KinicMemories("<identity>")
+
+# Grant reader access to everyone (anonymous)
+km.add_user("<memory canister id>", "anonymous", "reader")
+
+# Grant writer access to a specific principal
+km.add_user("<memory canister id>", "w7x7r-cok77-7x4qo-hqaaa-aaaaa-b", "writer")
 ```
 
-もし、特定の相手と共同でメモリを使いたい場合は、次のようにします。
+CLI example:
+```bash
+# Give everyone reader access
+cargo run -- --identity <name> config \
+  --memory-id <memory canister id> \
+  --add-user anonymous reader
 
-```python
-ここに、writer, <friend id>で設定する例を入れる
+# Grant writer access to a specific principal
+cargo run -- --identity <name> config \
+  --memory-id <memory canister id> \
+  --add-user w7x7r-cok77-7x4qo-hqaaa-aaaaa-b writer
 ```
 
+Notes:
+- `anonymous` applies to everyone; admin cannot be granted to anonymous.
+- Roles: `admin` (1), `writer` (2), `reader` (3).
+- Principals are validated; invalid text fails fast.
 
 ---
 
@@ -179,6 +194,7 @@ Query the ledger for the current identity’s balance (base units):
 ```bash
 cargo run -- --identity <name> balance
 ```
+
 ---
 
 ## API Reference
