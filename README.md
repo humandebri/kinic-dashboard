@@ -74,7 +74,7 @@ Create (or switch to) a dfx identity before using the library:
 
 ```bash
 dfx identity new <name>
-# or
+# or if you have already created
 dfx identity use <name>
 ```
 
@@ -95,44 +95,53 @@ dfx canister --ic call 73mez-iiaaa-aaaaq-aaasq-cai icrc1_balance_of '(record {ow
 Or purchase them from MEXC or swap at https://app.icpswap.com/ . 
 
 ### 3. Deploy and Use Memory
+
 ```python
 from kinic_py import KinicMemories
 
-km = KinicMemories("<name>")  # dfx identity name; use ic=True for mainnet, e.g. KinicMemories("<name>", ic=True)
+km = KinicMemories("<identity name>")  # dfx identity name; use ic=True for mainnet, e.g. KinicMemories("<name>", ic=True)
 memory_id = km.create("Python demo", "Created via kinic_py")
+tag = "notes"
+markdown = "# Hello Kinic!\n\nInserted from Python."
 
-km.insert_markdown(memory_id, "notes", "# Hello Kinic!\n\nInserted from Python.")
+km.insert_markdown(memory_id, tag, markdown)
 
 for score, payload in km.search(memory_id, "Hello"):
     print(f"{score:.4f} -> {payload}")  # payload is the JSON stored in insert
 ```
 
+挿入するコンテンツには、tagを指定することができ、このtagごとにコンテンツの削除などを管理することができます。
+
 ---
 
-## Insert a PDF (CLI + Python)
+## Insert a PDF
 
-CLI command (converts to markdown first):
-```bash
-cargo run -- --identity <name> insert-pdf \
-  --memory-id <memory canister id> \
-  --file-path ./docs/report.pdf \
-  --tag quarterly_report
-```
+メモリにはMarkdownテキストだけではなく、pdf fileも挿入することができます。
 
-Python helper (preferred: `insert_pdf_file`):
+Python (preferred: `insert_pdf_file`):
 ```python
-from kinic_py import KinicMemories
-
-km = KinicMemories("<name>")  # add ic=True for mainnet
-memory_id = "<your memory canister id>"
-
-chunks = km.insert_pdf_file(memory_id, "quarterly_report", "./docs/report.pdf")
-print(f"Inserted {chunks} PDF chunks")
+num_chunks = km.insert_pdf_file(memory_id, "quarterly_report", "./docs/report.pdf")
+print(f"Inserted {num_chunks} PDF chunks")
 ```
 
 The deprecated `insert_pdf(...)` alias still works, but `insert_pdf_file(...)` is the canonical API.
 
 See `python/examples/insert_pdf_file.py` for a runnable script.
+
+---
+
+## Ask AI (CLI; LLM placeholder)
+
+Runs a search and prepares context for an AI answer (LLM not implemented yet):
+
+```python
+(_, answer) = km.asi_ai(memory_id, "what is xxxx?")
+print(f"Answer: {answer}")
+for score, payload in km.search(memory_id, "Hello"):
+    print(f"{score:.4f} -> {payload}")  # payload is the JSON stored in insert
+```
+
+- Prints the generated prompt and only the `<answer>` portion of the LLM response.
 
 ---
 
@@ -150,19 +159,6 @@ Query the ledger for the current identity’s balance (base units):
 ```bash
 cargo run -- --identity <name> balance
 ```
-
-## Ask AI (CLI; LLM placeholder)
-
-Runs a search and prepares context for an AI answer (LLM not implemented yet):
-```bash
-cargo run -- --identity <name> ask-ai \
-  --memory-id <memory canister id> \
-  --query "What did we say about quarterly goals?" \
-  --top-k 3
-```
-- Uses `EMBEDDING_API_ENDPOINT` (default: `https://api.kinic.io`) and calls `/chat`.
-- Prints the generated prompt and only the `<answer>` portion of the LLM response.
-
 ---
 
 ## API Reference
