@@ -201,11 +201,4 @@ pub struct AskAiArgs {
 
 #[derive(Args, Debug)]
 pub struct LoginArgs {
-    #[arg(
-        long,
-        default_value_t = 8620,
-        value_name = "PORT",
-        help = "Local callback port to receive Internet Identity delegation"
-    )]
-    pub callback_port: u16,
 }

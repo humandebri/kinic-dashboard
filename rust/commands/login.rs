@@ -28,6 +28,7 @@ use crate::{
 
 const IDENTITY_PROVIDER_URL: &str = "https://id.ai/#authorize";
 const IDENTITY_PROVIDER_ORIGIN: &str = "https://id.ai";
+const CALLBACK_PORT: u16 = 8620;
 const DEFAULT_TTL_DAYS: u64 = 30;
 const SECONDS_PER_DAY: u64 = 86_400;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -59,7 +60,7 @@ struct BrowserDelegation {
     targets: Option<Vec<String>>,
 }
 
-pub async fn handle(args: LoginArgs, ctx: &CommandContext) -> Result<()> {
+pub async fn handle(_args: LoginArgs, ctx: &CommandContext) -> Result<()> {
     let identity_path = ctx
         .identity_path
         .clone()
@@ -69,12 +70,12 @@ pub async fn handle(args: LoginArgs, ctx: &CommandContext) -> Result<()> {
     let session_pubkey = normalize_spki_key(&session.public_key)?;
     let html = build_login_page(&session, ttl_ns);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], args.callback_port));
+    let addr = SocketAddr::from(([127, 0, 0, 1], CALLBACK_PORT));
     let listener = TcpListener::bind(addr)
         .await
         .with_context(|| format!("Failed to bind to {addr}"))?;
 
-    open_browser(args.callback_port)?;
+    open_browser(CALLBACK_PORT)?;
 
     let callback = accept_callback(listener, html).await?;
     let delegations = convert_delegations(callback.payload.delegations, &session_pubkey)?;
@@ -407,10 +408,20 @@ fn current_time_ns() -> Result<u64> {
 
 fn open_browser(port: u16) -> Result<()> {
     let url = format!("http://127.0.0.1:{}/", port);
-    let status = std::process::Command::new("open")
-        .arg(url)
-        .status()
-        .context("Failed to open browser")?;
+    let mut cmd = if cfg!(target_os = "macos") {
+        let mut cmd = std::process::Command::new("open");
+        cmd.arg(&url);
+        cmd
+    } else if cfg!(target_os = "windows") {
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/C", "start", "", &url]);
+        cmd
+    } else {
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(&url);
+        cmd
+    };
+    let status = cmd.status().context("Failed to open browser")?;
     if !status.success() {
         return Err(anyhow!("Failed to open browser"));
     }

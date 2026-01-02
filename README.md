@@ -35,7 +35,7 @@ By default we use the Internet Computer as the DA layer—with VetKey encryption
 
 - **Python 3.9+**
 - **KINIC tokens**: At least 1 KINIC to deploy memory canisters
-- **Identity**: Either store a PEM in macOS Keychain (`internet_computer_identity_<IDENTITY_NAME>`) or use Internet Identity login (`kinic-cli login`)
+- **dfx identity**: Create or select one with `dfx identity new <name>` or `dfx identity use <name>`
 
 > Note: Do not use the `default` identity with `kinic-cli`—it always fails. Use a named identity instead.
 
@@ -78,8 +78,8 @@ uv pip install -e .
 
 Choose one of the following:
 
-- **Keychain PEM**: Store your PEM in the macOS keychain entry named `internet_computer_identity_<IDENTITY_NAME>`, then use that identity name in CLI/Python calls.
-- **Internet Identity** (CLI only): Run `kinic-cli login` once to save a delegation, then pass `--ii` on CLI commands.
+- **dfx identity**: Use a dfx identity name in CLI/Python calls.
+- **Internet Identity** (CLI only): Run `cargo run -- --ii login` once to save a delegation, then pass `--ii` on CLI commands.
 
 Example: use `IDENTITY_NAME` wherever you see `<name>` below.
 
@@ -96,12 +96,12 @@ This prints your principal and balance (base units: `100000000 = 1 KINIC`).
 If you prefer browser login instead of a keychain PEM:
 
 ```bash
-cargo run -- login
+cargo run -- --ii login
 cargo run -- --ii list
 ```
 
 Delegations are stored at `~/.config/kinic/identity.json` (default TTL: 30 days).
-The login flow uses a local callback on port `8620` (override with `--callback-port`).
+The login flow uses a local callback on port `8620`.
 
 Python option (balance only):
 ```python

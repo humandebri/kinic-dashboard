@@ -5,7 +5,7 @@ Command-line companion for deploying and operating Kinic “memory” canisters.
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and `cargo`
-- macOS keychain (only needed when using `--identity`; the CLI reads PEMs via the `keyring` crate)
+- Keychain/credential store (only needed when using `--identity`; the CLI reads PEMs via the `keyring` crate)
 
 > **Keychain note:** If you hit `-67671 (errSecInteractionNotAllowed)` when loading a PEM, switch to the arm64 build of `dfx`. See the [dfx 0.28 migration guide](https://github.com/dfinity/sdk/blob/0.28.0/docs/migration/dfx-0.28.0-migration-guide.md).
 
@@ -40,7 +40,7 @@ These are only required if you want to run a local replica for development and t
 
 4. **Configure identities**
 
-   - Store your PEM in the macOS keychain entry named `internet_computer_identity_<IDENTITY_NAME>`.
+   - Store your PEM in your keychain/credential store entry named `internet_computer_identity_<IDENTITY_NAME>`.
    - Pass that name via `--identity` whenever you run the CLI (the default script assumes `default`).
 
 5. **Set embedding endpoint**
@@ -81,7 +81,7 @@ cargo run -- --ii create \
 
 Notes:
 - Delegations are stored at `~/.config/kinic/identity.json`.
-- The login flow uses a local callback on port `8620` (override with `--callback-port`).
+- The login flow uses a local callback on port `8620`.
 
 ### Convert PDF to markdown (inspect only)
 
