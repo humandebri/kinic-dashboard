@@ -111,11 +111,7 @@ cargo run -- --ii list
 Delegations are stored at `~/.config/kinic/identity.json` (default TTL: 30 days).
 The login flow uses a local callback on port `8620`.
 
-Python option (balance only):
-```python
-from kinic_py import get_balance
-base, kinic = get_balance("<identity name>", ic=True)
-```
+Python currently supports dfx identities only (no `--ii` support yet).
 **DM https://x.com/wyatt_benno for KINIC prod tokens** with your principal ID.
 
 Or purchase them from MEXC or swap at https://app.icpswap.com/ . 

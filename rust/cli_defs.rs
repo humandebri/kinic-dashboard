@@ -29,6 +29,7 @@ pub struct GlobalOpts {
 
     #[arg(
         long,
+        conflicts_with = "ii",
         required_unless_present = "ii",
         help = "dfx identity name (uses ~/.config/dfx/identity/<name>/identity.pem)"
     )]

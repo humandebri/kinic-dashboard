@@ -71,9 +71,18 @@ pub async fn handle(_args: LoginArgs, ctx: &CommandContext) -> Result<()> {
     let html = build_login_page(&session, ttl_ns);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], CALLBACK_PORT));
-    let listener = TcpListener::bind(addr)
-        .await
-        .with_context(|| format!("Failed to bind to {addr}"))?;
+    let listener = match TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(err) if err.kind() == std::io::ErrorKind::AddrInUse => {
+            anyhow::bail!(
+                "Failed to bind to {addr}: port {port} is already in use. Stop the process using it and try again.",
+                port = CALLBACK_PORT
+            );
+        }
+        Err(err) => {
+            return Err(err).with_context(|| format!("Failed to bind to {addr}"));
+        }
+    };
 
     open_browser(CALLBACK_PORT)?;
 
@@ -246,7 +255,7 @@ async fn handle_connection(stream: &mut TcpStream, html: &str) -> Result<Option<
         ("GET", "/") => {
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
-                html.len(),
+                html.as_bytes().len(),
                 html
             );
             stream.write_all(response.as_bytes()).await?;
@@ -264,7 +273,7 @@ async fn handle_connection(stream: &mut TcpStream, html: &str) -> Result<Option<
             .to_string();
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                body.len(),
+                body.as_bytes().len(),
                 body
             );
             stream.write_all(response.as_bytes()).await?;
@@ -274,7 +283,7 @@ async fn handle_connection(stream: &mut TcpStream, html: &str) -> Result<Option<
             let body = "Not found";
             let response = format!(
                 "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
-                body.len(),
+                body.as_bytes().len(),
                 body
             );
             stream.write_all(response.as_bytes()).await?;

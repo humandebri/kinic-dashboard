@@ -60,9 +60,6 @@ pub async fn run() -> Result<()> {
         ),
         _ => {
             if cli.global.ii {
-                if cli.global.identity.is_some() {
-                    anyhow::bail!("--identity cannot be used with --ii");
-                }
                 AuthMode::InternetIdentity(
                     identity_path
                         .clone()
