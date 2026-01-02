@@ -5,7 +5,7 @@ from kinic_py import KinicMemories
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ask AI over a Kinic memory")
-    parser.add_argument("--identity", required=True, help="dfx identity name")
+    parser.add_argument("--identity", required=True, help="keychain identity name")
     parser.add_argument("--memory-id", required=True, help="memory canister id")
     parser.add_argument("--query", required=True, help="question to ask")
     parser.add_argument("--top-k", type=int, default=3, help="number of top search results to include")

@@ -12,10 +12,12 @@ pub mod search;
 pub mod update;
 pub mod balance;
 pub mod ask_ai;
+pub mod login;
 
 #[derive(Clone)]
 pub struct CommandContext {
     pub agent_factory: AgentFactory,
+    pub identity_path: Option<std::path::PathBuf>,
 }
 
 pub async fn run_command(command: Command, ctx: CommandContext) -> Result<()> {
@@ -30,5 +32,6 @@ pub async fn run_command(command: Command, ctx: CommandContext) -> Result<()> {
         Command::Update(args) => update::handle(args, &ctx).await,
         Command::Balance(args) => balance::handle(args, &ctx).await,
         Command::AskAi(args) => ask_ai::handle(args, &ctx).await,
+        Command::Login(args) => login::handle(args, &ctx).await,
     }
 }

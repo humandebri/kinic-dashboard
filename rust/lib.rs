@@ -4,6 +4,7 @@ pub mod cli;
 pub(crate) mod clients;
 mod commands;
 mod embedding;
+pub(crate) mod identity_store;
 #[cfg(feature = "python-bindings")]
 mod python;
 
@@ -13,7 +14,7 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt;
 
 use crate::{
-    agent::AgentFactory,
+    agent::{AgentFactory, AuthMode},
     cli::Cli,
     commands::{CommandContext, run_command},
 };
@@ -41,8 +42,46 @@ pub async fn run() -> Result<()> {
 
     fmt().with_max_level(max).without_time().try_init().ok();
 
+    let needs_identity_path = matches!(cli.command, cli::Command::Login(_)) || cli.global.ii;
+    let identity_path = if needs_identity_path {
+        Some(match cli.global.identity_path.clone() {
+            Some(path) => path,
+            None => identity_store::default_identity_path()?,
+        })
+    } else {
+        None
+    };
+
+    let auth_mode = match cli.command {
+        cli::Command::Login(_) => AuthMode::InternetIdentity(
+            identity_path
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("Identity path is missing"))?,
+        ),
+        _ => {
+            if cli.global.ii {
+                if cli.global.identity.is_some() {
+                    anyhow::bail!("--identity cannot be used with --ii");
+                }
+                AuthMode::InternetIdentity(
+                    identity_path
+                        .clone()
+                        .ok_or_else(|| anyhow::anyhow!("Identity path is missing"))?,
+                )
+            } else {
+                let identity = cli
+                    .global
+                    .identity
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("--identity is required unless --ii is set"))?;
+                AuthMode::Keychain(identity)
+            }
+        }
+    };
+
     let context = CommandContext {
-        agent_factory: AgentFactory::new(cli.global.ic, cli.global.identity.clone()),
+        agent_factory: AgentFactory::new(cli.global.ic, auth_mode),
+        identity_path,
     };
 
     run_command(cli.command, context).await

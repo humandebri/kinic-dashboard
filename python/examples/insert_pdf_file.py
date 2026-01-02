@@ -18,7 +18,7 @@ from kinic_py import KinicMemories
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Insert a PDF by converting it to markdown first")
-    parser.add_argument("--identity", required=True, help="dfx identity name")
+    parser.add_argument("--identity", required=True, help="keychain identity name")
     parser.add_argument("--memory-id", help="existing memory canister id; if omitted, a new one is created")
     parser.add_argument("--file", required=True, help="path to the PDF to insert")
     parser.add_argument("--tag", default="pdf_demo", help="tag to store with the inserted content")

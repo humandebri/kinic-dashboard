@@ -5,11 +5,16 @@ Command-line companion for deploying and operating Kinic “memory” canisters.
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and `cargo`
-- [dfx 0.28+](https://github.com/dfinity/sdk/releases/tag/0.28.0) with the `arm64` build on Apple Silicon
-- Local Internet Computer replica (`dfx start`)
-- macOS keychain (the CLI reads PEMs via the `keyring` crate)
+- macOS keychain (only needed when using `--identity`; the CLI reads PEMs via the `keyring` crate)
 
 > **Keychain note:** If you hit `-67671 (errSecInteractionNotAllowed)` when loading a PEM, switch to the arm64 build of `dfx`. See the [dfx 0.28 migration guide](https://github.com/dfinity/sdk/blob/0.28.0/docs/migration/dfx-0.28.0-migration-guide.md).
+
+## Local development prerequisites (optional)
+
+These are only required if you want to run a local replica for development and testing.
+
+- [dfx 0.28+](https://github.com/dfinity/sdk/releases/tag/0.28.0) with the `arm64` build on Apple Silicon
+- Local Internet Computer replica (`dfx start`)
 
 ## Local test setup
 
@@ -48,7 +53,7 @@ Command-line companion for deploying and operating Kinic “memory” canisters.
 
 ## Running the CLI
 
-All commands require `--identity`. Use `--ic` to talk to mainnet; omit it (or leave false) for the local replica.
+Use either `--identity` (keychain PEM) or `--ii` (Internet Identity login). Use `--ic` to talk to mainnet; omit it (or leave false) for the local replica.
 
 ```bash
 cargo run -- --identity alice list
@@ -56,6 +61,27 @@ cargo run -- --identity alice create \
   --name "Demo memory" \
   --description "Local test canister"
 ```
+
+### Internet Identity login (macOS)
+
+First, open the browser login flow and store a delegation (default TTL: 30 days):
+
+```bash
+cargo run -- login
+```
+
+Then run commands with `--ii`:
+
+```bash
+cargo run -- --ii list
+cargo run -- --ii create \
+  --name "Demo memory" \
+  --description "Local test canister"
+```
+
+Notes:
+- Delegations are stored at `~/.config/kinic/identity.json`.
+- The login flow uses a local callback on port `8620` (override with `--callback-port`).
 
 ### Convert PDF to markdown (inspect only)
 

@@ -29,10 +29,22 @@ pub struct GlobalOpts {
 
     #[arg(
         long,
-        required = true,
-        help = "Dfx identity name used to load credentials from the system keyring"
+        help = "Keychain identity suffix used to load credentials from the system keyring"
     )]
-    pub identity: String,
+    pub identity: Option<String>,
+
+    #[arg(
+        long,
+        help = "Use Internet Identity login (delegation saved to identity.json)"
+    )]
+    pub ii: bool,
+
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Path to identity.json (default: ~/.config/kinic/identity.json)"
+    )]
+    pub identity_path: Option<PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -57,6 +69,8 @@ pub enum Command {
     Balance(BalanceArgs),
     #[command(about = "Ask Kinic AI using memory search results (LLM placeholder)")]
     AskAi(AskAiArgs),
+    #[command(about = "Login via Internet Identity and store a delegation")]
+    Login(LoginArgs),
 }
 
 #[derive(Args, Debug)]
@@ -180,4 +194,15 @@ pub struct AskAiArgs {
         help = "Number of top search results to include in the LLM prompt"
     )]
     pub top_k: usize,
+}
+
+#[derive(Args, Debug)]
+pub struct LoginArgs {
+    #[arg(
+        long,
+        default_value_t = 8620,
+        value_name = "PORT",
+        help = "Local callback port to receive Internet Identity delegation"
+    )]
+    pub callback_port: u16,
 }

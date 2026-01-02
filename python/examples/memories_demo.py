@@ -13,7 +13,7 @@ from kinic_py import KinicMemories
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Kinic Python wrapper demo")
-    parser.add_argument("--identity", required=True, help="dfx identity name")
+    parser.add_argument("--identity", required=True, help="keychain identity name")
     parser.add_argument("--memory-id", required=False, help="existing canister to use")
     parser.add_argument("--ic", action="store_true", help="talk to mainnet instead of local replica")
     parser.add_argument("--tag", default="demo", help="tag to store with inserted text")
