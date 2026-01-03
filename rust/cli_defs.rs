@@ -31,7 +31,7 @@ pub struct GlobalOpts {
         long,
         conflicts_with = "ii",
         required_unless_present = "ii",
-        help = "dfx identity name (uses ~/.config/dfx/identity/<name>/identity.pem)"
+        help = "Dfx identity name used to load credentials from the system keyring"
     )]
     pub identity: Option<String>,
 

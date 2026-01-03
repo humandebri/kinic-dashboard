@@ -23,7 +23,7 @@ pub(crate) async fn create_memory(
     name: String,
     description: String,
 ) -> Result<String> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let agent = factory.build().await?;
     let client = LauncherClient::new(agent);
 
@@ -33,7 +33,7 @@ pub(crate) async fn create_memory(
 }
 
 pub(crate) async fn list_memories(use_mainnet: bool, identity: String) -> Result<Vec<String>> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let agent = factory.build().await?;
     let client = LauncherClient::new(agent);
     let states = client.list_memories().await?;
@@ -111,7 +111,7 @@ pub(crate) async fn ask_ai(
     top_k: Option<usize>,
     language: Option<String>,
 ) -> Result<AskAiResult> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let memory = Principal::from_text(memory_id).context("Failed to parse memory canister id")?;
     let top_k = top_k.unwrap_or(5);
     let language = language.unwrap_or_else(|| "en".to_string());
@@ -119,7 +119,7 @@ pub(crate) async fn ask_ai(
 }
 
 pub(crate) async fn balance(use_mainnet: bool, identity: String) -> Result<(u128, f64)> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let agent = factory.build().await?;
     let principal = agent
         .get_principal()
@@ -155,7 +155,7 @@ pub(crate) async fn add_user(
     user_id: String,
     role: String,
 ) -> Result<()> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let agent = factory.build().await?;
     let memory = Principal::from_text(memory_id).context("Failed to parse memory canister id")?;
     let client = MemoryClient::new(agent, memory);
@@ -174,7 +174,7 @@ pub(crate) async fn update_instance(
     identity: String,
     memory_id: String,
 ) -> Result<()> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let agent = factory.build().await?;
     let client = LauncherClient::new(agent);
     let pid = Principal::from_text(memory_id)
@@ -191,7 +191,7 @@ async fn build_memory_client(
     identity: String,
     memory_id: String,
 ) -> Result<MemoryClient> {
-    let factory = AgentFactory::new(use_mainnet, AuthMode::DfxIdentity(identity));
+    let factory = AgentFactory::new(use_mainnet, AuthMode::Keychain(identity));
     let agent = factory.build().await?;
     let memory = Principal::from_text(memory_id).context("Failed to parse memory canister id")?;
     Ok(MemoryClient::new(agent, memory))

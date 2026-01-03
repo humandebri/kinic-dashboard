@@ -1,4 +1,4 @@
-use std::{fs, io::Cursor, path::PathBuf};
+use std::io::Cursor;
 
 use anyhow::Result;
 use ic_agent::{
@@ -9,11 +9,12 @@ use ic_agent::{
 
 use crate::identity_store;
 
-const DFX_IDENTITY_DIR: &str = ".config/dfx/identity";
+pub const KEYRING_SERVICE_NAME: &str = "internet_computer_identities";
+pub const KEYRING_IDENTITY_PREFIX: &str = "internet_computer_identity_";
 
 #[derive(Clone)]
 pub enum AuthMode {
-    DfxIdentity(String),
+    Keychain(String),
     InternetIdentity(std::path::PathBuf),
 }
 
@@ -33,8 +34,8 @@ impl AgentFactory {
 
     pub async fn build(&self) -> Result<Agent> {
         let builder = match &self.auth_mode {
-            AuthMode::DfxIdentity(identity_name) => {
-                let pem_bytes = load_pem_from_dfx_identity(identity_name)?;
+            AuthMode::Keychain(identity_suffix) => {
+                let pem_bytes = load_pem_from_keyring(identity_suffix)?;
                 let pem_text = String::from_utf8(pem_bytes.clone())?;
                 let pem = pem::parse(pem_text.as_bytes())?;
                 match pem.tag() {
@@ -74,14 +75,18 @@ fn load_internet_identity(path: &std::path::Path) -> Result<DelegatedIdentity> {
     identity_store::load_delegated_identity(path)
 }
 
-fn load_pem_from_dfx_identity(identity_name: &str) -> anyhow::Result<Vec<u8>> {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .map_err(|_| anyhow::anyhow!("HOME is not set"))?;
-    let path = PathBuf::from(home)
-        .join(DFX_IDENTITY_DIR)
-        .join(identity_name)
-        .join("identity.pem");
-    fs::read(&path)
-        .map_err(|err| anyhow::anyhow!("Failed to read dfx identity PEM at {}: {err}", path.display()))
+fn load_pem_from_keyring(suffix: &str) -> anyhow::Result<Vec<u8>> {
+    let account = format!("{KEYRING_IDENTITY_PREFIX}{suffix}");
+    let entry = keyring::Entry::new(KEYRING_SERVICE_NAME, &account)?;
+    let encoded_pem = entry.get_password().map_err(|e| {
+        let msg = format!("{e:?}");
+        if msg.contains("-67671") || msg.contains("errSecInteractionNotAllowed") {
+            anyhow::anyhow!(
+                "macOS keychain returned -67671 (errSecInteractionNotAllowed). This is a known bug when using the x86 build of dfx; please install and use the arm64 build instead. See more detail: https://github.com/dfinity/sdk/blob/0.28.0/docs/migration/dfx-0.28.0-migration-guide.md"
+            )
+        } else {
+            anyhow::anyhow!("Keychain Error: {msg}")
+        }
+    })?;
+    Ok(hex::decode(encoded_pem)?)
 }

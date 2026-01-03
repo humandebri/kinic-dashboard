@@ -151,6 +151,7 @@ pub fn save_identity(path: &Path, stored: &StoredIdentity) -> Result<()> {
     Ok(())
 }
 
+
 fn ensure_not_expired(stored: &StoredIdentity) -> Result<()> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)

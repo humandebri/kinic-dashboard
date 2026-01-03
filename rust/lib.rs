@@ -71,7 +71,7 @@ pub async fn run() -> Result<()> {
                     .identity
                     .clone()
                     .ok_or_else(|| anyhow::anyhow!("--identity is required unless --ii is set"))?;
-                AuthMode::DfxIdentity(identity)
+                AuthMode::Keychain(identity)
             }
         }
     };

@@ -5,14 +5,11 @@ Command-line companion for deploying and operating Kinic “memory” canisters.
 ## Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain) and `cargo`
-- dfx identity (used when passing `--identity`)
-
-## Local development prerequisites (optional)
-
-These are only required if you want to run a local replica for development and testing.
-
 - [dfx 0.28+](https://github.com/dfinity/sdk/releases/tag/0.28.0) with the `arm64` build on Apple Silicon
 - Local Internet Computer replica (`dfx start`)
+- macOS keychain (the CLI reads PEMs via the `keyring` crate)
+
+> **Keychain note:** If you hit `-67671 (errSecInteractionNotAllowed)` when loading a PEM, switch to the arm64 build of `dfx`. See the [dfx 0.28 migration guide](https://github.com/dfinity/sdk/blob/0.28.0/docs/migration/dfx-0.28.0-migration-guide.md).
 
 ## Local test setup
 
@@ -38,7 +35,7 @@ These are only required if you want to run a local replica for development and t
 
 4. **Configure identities**
 
-   - Create or select a dfx identity (`dfx identity new <name>` or `dfx identity use <name>`).
+   - Store your PEM in the macOS keychain entry named `internet_computer_identity_<IDENTITY_NAME>`.
    - Pass that name via `--identity` whenever you run the CLI (the default script assumes `default`).
 
 5. **Set embedding endpoint**
@@ -51,15 +48,9 @@ These are only required if you want to run a local replica for development and t
 
 ## Running the CLI
 
-Use either `--identity` (dfx identity name; PEM at `~/.config/dfx/identity/<name>/identity.pem`) or `--ii` (Internet Identity login). Use `--ic` to talk to mainnet; omit it (or leave false) for the local replica. If you are not using `--ii`, `--identity <name>` is required for CLI commands.
-
-### dfx identity flow (--identity)
+Use either `--identity` (dfx identity name stored in the system keychain) or `--ii` (Internet Identity login). Use `--ic` to talk to mainnet; omit it (or leave false) for the local replica. If you are not using `--ii`, `--identity <name>` is required for CLI commands.
 
 ```bash
-dfx identity new alice
-# or if you already created it:
-dfx identity use alice
-
 cargo run -- --identity alice list
 cargo run -- --identity alice create \
   --name "Demo memory" \
@@ -182,7 +173,7 @@ cargo run -- --identity alice ask-ai \
 ## Troubleshooting
 
 - **Replica already running**: stop lingering replicas with `dfx stop` before restarting.
-- **Identity PEM errors**: ensure the dfx identity exists and that `~/.config/dfx/identity/<name>/identity.pem` is readable.
+- **Keychain access errors**: ensure the CLI has permission to read the keychain entry, and prefer the arm64 build of `dfx`.
 - **Embedding API failures**: set `EMBEDDING_API_ENDPOINT` and verify the endpoint responds to `/late-chunking` and `/embedding`.
 
 ## Python wrapper

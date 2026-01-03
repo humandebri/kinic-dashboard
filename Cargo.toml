@@ -9,6 +9,13 @@ candid = "0.10.20"
 clap = { version = "4.5.51", features = ["derive"] }
 hex = "0.4.3"
 ic-agent = { version = "0.44.3", features = ["ring"] }
+keyring = { version = "3", features = [
+    "apple-native",
+    "windows-native",
+    "linux-native",
+    "sync-secret-service",
+    "vendored",
+] }
 pem = "3.0.6"
 # security-framework = "3.5.1"
 # security-framework-sys = "2.15.0"

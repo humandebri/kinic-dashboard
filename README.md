@@ -40,12 +40,6 @@ By default we use the Internet Computer as the DA layer—with VetKey encryption
 
 > Note: Do not use the `default` identity with `kinic-cli`—it always fails. Use a named identity instead.
 
-## Local development prerequisites (optional)
-
-These are only required if you want to run a local replica for development/testing.
-
-- Local Internet Computer replica (`dfx start`)
-
 Optional: If you need local launcher/ledger/II canisters, run `./scripts/setup.sh` after `dfx start --clean --background`.
 
 ---
@@ -74,7 +68,7 @@ uv pip install -e .
 
 ## Quickstart
 
-### 1. dfx identity flow (--identity)
+### 1. Create or Select Your Identity
 
 Create (or switch to) a dfx identity before using the library:
 
@@ -84,9 +78,7 @@ dfx identity new <name>
 dfx identity use <name>
 ```
 
-Use that name with `--identity` in CLI/Python calls.
-
-### 2. Check Your Balance (dfx identity)
+### 2. Check Your Balance
 
 Make sure you have at least 1 KINIC token:
 ```bash
@@ -101,7 +93,7 @@ dfx canister --ic call 73mez-iiaaa-aaaaq-aaasq-cai icrc1_balance_of '(record {ow
 
 ### 3. Internet Identity flow (--ii, CLI only)
 
-If you prefer browser login instead of a dfx identity PEM:
+If you prefer browser login instead of a keychain-backed dfx identity:
 
 ```bash
 cargo run -- --ii login
@@ -111,7 +103,6 @@ cargo run -- --ii list
 Delegations are stored at `~/.config/kinic/identity.json` (default TTL: 30 days).
 The login flow uses a local callback on port `8620`.
 
-Python currently supports dfx identities only (no `--ii` support yet).
 **DM https://x.com/wyatt_benno for KINIC prod tokens** with your principal ID.
 
 Or purchase them from MEXC or swap at https://app.icpswap.com/ . 
