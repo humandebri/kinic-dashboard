@@ -52,7 +52,9 @@ pub async fn run() -> Result<()> {
         None
     };
 
-    let agent_factory = if cli.global.ii && !matches!(cli.command, cli::Command::Login(_)) {
+    let agent_factory = if matches!(cli.command, cli::Command::Login(_)) {
+        AgentFactory::new(cli.global.ic, String::new())
+    } else if cli.global.ii {
         let path = identity_path
             .clone()
             .ok_or_else(|| anyhow::anyhow!("Identity path is missing"))?;
