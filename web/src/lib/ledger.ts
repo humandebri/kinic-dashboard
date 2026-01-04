@@ -13,6 +13,26 @@ type Account = {
   subaccount: [] | [Uint8Array]
 }
 
+type TransferArgs = {
+  from_subaccount: [] | [Uint8Array]
+  to: Account
+  amount: bigint
+  fee: [] | [bigint]
+  memo: [] | [Uint8Array]
+  created_at_time: [] | [bigint]
+}
+
+type TransferError =
+  | { BadFee: { expected_fee: bigint } }
+  | { InsufficientFunds: { balance: bigint } }
+  | { TooOld: null }
+  | { CreatedInFuture: { ledger_time: bigint } }
+  | { Duplicate: { duplicate_of: bigint } }
+  | { TemporarilyUnavailable: null }
+  | { GenericError: { error_code: bigint; message: string } }
+
+type TransferResult = { Ok: bigint } | { Err: TransferError }
+
 type ApproveArgs = {
   from_subaccount: [] | [Uint8Array]
   spender: Account
@@ -39,6 +59,7 @@ type ApproveResult = { Ok: bigint } | { Err: ApproveError }
 
 type BalanceActor = {
   icrc1_balance_of: (account: Account) => Promise<bigint>
+  icrc1_transfer: (args: TransferArgs) => Promise<TransferResult>
   icrc2_approve: (args: ApproveArgs) => Promise<ApproveResult>
 }
 
@@ -46,6 +67,27 @@ const ledgerIdlFactory: IDL.InterfaceFactory = ({ IDL }) => {
   const Account = IDL.Record({
     owner: IDL.Principal,
     subaccount: IDL.Opt(IDL.Vec(IDL.Nat8))
+  })
+  const TransferArgs = IDL.Record({
+    from_subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
+    to: Account,
+    amount: IDL.Nat,
+    fee: IDL.Opt(IDL.Nat),
+    memo: IDL.Opt(IDL.Vec(IDL.Nat8)),
+    created_at_time: IDL.Opt(IDL.Nat64)
+  })
+  const TransferError = IDL.Variant({
+    BadFee: IDL.Record({ expected_fee: IDL.Nat }),
+    InsufficientFunds: IDL.Record({ balance: IDL.Nat }),
+    TooOld: IDL.Null,
+    CreatedInFuture: IDL.Record({ ledger_time: IDL.Nat64 }),
+    Duplicate: IDL.Record({ duplicate_of: IDL.Nat }),
+    TemporarilyUnavailable: IDL.Null,
+    GenericError: IDL.Record({ error_code: IDL.Nat, message: IDL.Text })
+  })
+  const TransferResult = IDL.Variant({
+    Ok: IDL.Nat,
+    Err: TransferError
   })
   const ApproveArgs = IDL.Record({
     from_subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
@@ -74,6 +116,7 @@ const ledgerIdlFactory: IDL.InterfaceFactory = ({ IDL }) => {
   })
   return IDL.Service({
     icrc1_balance_of: IDL.Func([Account], [IDL.Nat], ['query']),
+    icrc1_transfer: IDL.Func([TransferArgs], [TransferResult], []),
     icrc2_approve: IDL.Func([ApproveArgs], [ApproveResult], [])
   })
 }
@@ -92,6 +135,98 @@ export const createLedgerActor = async (identity?: Identity): Promise<BalanceAct
     agent,
     canisterId: LEDGER_CANISTER_ID
   })
+}
+
+export const createLedgerActorWithAgent = (agent: HttpAgent): BalanceActor => {
+  return Actor.createActor<BalanceActor>(ledgerIdlFactory, {
+    agent,
+    canisterId: LEDGER_CANISTER_ID
+  })
+}
+
+const formatTransferError = (error: TransferError): string => {
+  if ('BadFee' in error) return `Bad fee (expected ${error.BadFee.expected_fee})`
+  if ('InsufficientFunds' in error) return `Insufficient funds (${error.InsufficientFunds.balance})`
+  if ('TooOld' in error) return 'Request too old'
+  if ('CreatedInFuture' in error) return `Created in future at ${error.CreatedInFuture.ledger_time}`
+  if ('Duplicate' in error) return `Duplicate request ${error.Duplicate.duplicate_of}`
+  if ('TemporarilyUnavailable' in error) return 'Temporarily unavailable'
+  if ('GenericError' in error) return error.GenericError.message
+  return 'Unknown transfer error'
+}
+
+const isTransferError = (value: unknown): value is TransferError => {
+  if (!isRecord(value)) return false
+  return (
+    'BadFee' in value ||
+    'InsufficientFunds' in value ||
+    'TooOld' in value ||
+    'CreatedInFuture' in value ||
+    'Duplicate' in value ||
+    'TemporarilyUnavailable' in value ||
+    'GenericError' in value
+  )
+}
+
+export const transferIcrc1 = async (actor: BalanceActor, args: TransferArgs): Promise<bigint> => {
+  const result = await actor.icrc1_transfer(args)
+  if (isRecord(result) && 'Err' in result) {
+    throw new Error(formatTransferError(result.Err))
+  }
+  if (isRecord(result) && 'Ok' in result) {
+    return result.Ok
+  }
+  throw new Error('Unexpected transfer response')
+}
+
+const icrc1TransferArgsIdl = (IDL: typeof import('@dfinity/candid').IDL) => {
+  const Account = IDL.Record({
+    owner: IDL.Principal,
+    subaccount: IDL.Opt(IDL.Vec(IDL.Nat8))
+  })
+  return IDL.Record({
+    from_subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)),
+    to: Account,
+    amount: IDL.Nat,
+    fee: IDL.Opt(IDL.Nat),
+    memo: IDL.Opt(IDL.Vec(IDL.Nat8)),
+    created_at_time: IDL.Opt(IDL.Nat64)
+  })
+}
+
+const icrc1TransferResultIdl = (IDL: typeof import('@dfinity/candid').IDL) => {
+  const TransferError = IDL.Variant({
+    BadFee: IDL.Record({ expected_fee: IDL.Nat }),
+    InsufficientFunds: IDL.Record({ balance: IDL.Nat }),
+    TooOld: IDL.Null,
+    CreatedInFuture: IDL.Record({ ledger_time: IDL.Nat64 }),
+    Duplicate: IDL.Record({ duplicate_of: IDL.Nat }),
+    TemporarilyUnavailable: IDL.Null,
+    GenericError: IDL.Record({ error_code: IDL.Nat, message: IDL.Text })
+  })
+  return IDL.Variant({
+    Ok: IDL.Nat,
+    Err: TransferError
+  })
+}
+
+export const encodeIcrc1TransferArgs = (args: TransferArgs): Uint8Array => {
+  const arg = IDL.encode([icrc1TransferArgsIdl(IDL)], [args])
+  return new Uint8Array(arg)
+}
+
+export const decodeIcrc1TransferResult = (bytes: Uint8Array): TransferResult => {
+  const [result] = IDL.decode([icrc1TransferResultIdl(IDL)], bytes)
+  if (!isRecord(result)) {
+    throw new Error('Invalid transfer response')
+  }
+  if ('Ok' in result && typeof result.Ok === 'bigint') {
+    return { Ok: result.Ok }
+  }
+  if ('Err' in result && isTransferError(result.Err)) {
+    return { Err: result.Err }
+  }
+  throw new Error('Invalid transfer response')
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {

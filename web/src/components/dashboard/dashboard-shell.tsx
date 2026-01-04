@@ -13,30 +13,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 
 import { transactionData } from '@/data/dashboard-transactions'
-import { useIdentity } from '@/hooks/use-identity'
-import { useLedgerBalance } from '@/hooks/use-ledger-balance'
+import { useIdentityState } from '@/components/providers/identity-provider'
 import { useMemories } from '@/hooks/use-memories'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 
 const DashboardShell = () => {
-  const identityState = useIdentity()
-  const balance = useLedgerBalance(identityState.identity)
+  const identityState = useIdentityState()
   const memories = useMemories(identityState.identity, identityState.isReady)
   const { setSelectedMemoryId } = useSelectedMemory()
 
-  const balanceValue =
-    balance.balanceKinic !== null ? Number(balance.balanceKinic.toFixed(4)) : undefined
-  const balanceText = `${balanceValue ?? '--'} KINIC`
-
   return (
-    <AppShell
-      pageTitle='Dashboard'
-      identityState={identityState}
-      balanceText={balanceText}
-      onBalanceRefresh={balance.refresh}
-      isBalanceRefreshing={balance.isLoading}
-      showFooter
-    >
+    <AppShell pageTitle='Dashboard' identityState={identityState} showFooter>
       <div className='grid gap-6'>
         <Card>
           <CardHeader className='flex flex-col items-start gap-2'>

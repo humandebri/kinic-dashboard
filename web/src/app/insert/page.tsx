@@ -9,7 +9,7 @@ import AppShell from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { useIdentity } from '@/hooks/use-identity'
+import { useIdentityState } from '@/components/providers/identity-provider'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 import { createMemoryActor } from '@/lib/memory'
 import { lateChunking } from '@/lib/embedding'
@@ -31,7 +31,7 @@ const isMarkdownFile = (file: File) => {
 }
 
 const InsertPage = () => {
-  const identityState = useIdentity()
+  const identityState = useIdentityState()
   const { selectedMemoryId } = useSelectedMemory()
   const [fileName, setFileName] = useState<string | null>(null)
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null)

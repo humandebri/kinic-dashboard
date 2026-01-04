@@ -32,6 +32,7 @@ import {
 
 import ProfileDropdown from '@/components/shadcn-studio/blocks/dropdown-profile'
 import { primarySection, pageSections } from '@/data/dashboard-nav'
+import { useBalance } from '@/components/providers/balance-provider'
 import type { IdentityState } from '@/hooks/use-identity'
 import { useMemories } from '@/hooks/use-memories'
 import { useMounted } from '@/hooks/use-mounted'
@@ -41,9 +42,6 @@ type AppShellProps = {
   pageTitle: string
   pageSubtitle?: string
   identityState: IdentityState
-  balanceText?: string | null
-  onBalanceRefresh?: () => void
-  isBalanceRefreshing?: boolean
   showFooter?: boolean
   children: ReactNode
 }
@@ -58,13 +56,11 @@ const AppShell = ({
   pageTitle,
   pageSubtitle,
   identityState,
-  balanceText,
-  onBalanceRefresh,
-  isBalanceRefreshing = false,
   showFooter = false,
   children
 }: AppShellProps) => {
   const mounted = useMounted()
+  const balance = useBalance()
   const memories = useMemories(identityState.identity, identityState.isReady)
   const { selectedMemoryId, setSelectedMemoryId } = useSelectedMemory()
   const memoryOptions = memories.memories
@@ -185,21 +181,19 @@ const AppShell = ({
                     </select>
                   </div>
                 ) : null}
-                {balanceText ? (
+                {identityState.isAuthenticated ? (
                   <div className='flex items-center gap-1.5 rounded-full border border-zinc-200/70 bg-white/80 px-3 text-sm text-zinc-700 shadow-sm backdrop-blur'>
-                    <span className='font-medium'>{balanceText}</span>
-                    {onBalanceRefresh ? (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='size-7 rounded-full text-zinc-500'
-                        onClick={onBalanceRefresh}
-                        disabled={isBalanceRefreshing}
-                      >
-                        <RefreshCwIcon className={isBalanceRefreshing ? 'animate-spin' : ''} />
-                        <span className='sr-only'>Reload balance</span>
-                      </Button>
-                    ) : null}
+                    <span className='font-medium'>{balance.balanceText}</span>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      className='size-7 rounded-full text-zinc-500'
+                      onClick={balance.refresh}
+                      disabled={balance.isLoading}
+                    >
+                      <RefreshCwIcon className={balance.isLoading ? 'animate-spin' : ''} />
+                      <span className='sr-only'>Reload balance</span>
+                    </Button>
                   </div>
                 ) : null}
                 {identityState.isAuthenticated ? null : (

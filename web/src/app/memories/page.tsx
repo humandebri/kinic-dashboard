@@ -5,10 +5,10 @@
 
 import AppShell from '@/components/layout/app-shell'
 import MemoriesPanel from '@/components/memories/memories-panel'
-import { useIdentity } from '@/hooks/use-identity'
+import { useIdentityState } from '@/components/providers/identity-provider'
 
 const MemoriesPage = () => {
-  const identityState = useIdentity()
+  const identityState = useIdentityState()
 
   return (
     <AppShell pageTitle='Memories' identityState={identityState}>

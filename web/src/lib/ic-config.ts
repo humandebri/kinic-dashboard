@@ -9,6 +9,7 @@ export const EMBEDDING_ENDPOINT = process.env.NEXT_PUBLIC_EMBEDDING_ENDPOINT || 
 export const DERIVATION_ORIGIN = process.env.NEXT_PUBLIC_DERIVATION_ORIGIN
 export const II_SESSION_TTL_NS = 86_400_000_000_000n
 export const APPROVAL_TTL_NS = 600_000_000_000n
+export const OISY_SIGNER_URL = process.env.NEXT_PUBLIC_OISY_SIGNER_URL || 'https://oisy.com/sign'
 
 export const isMainnetHost = (host: string): boolean => {
   return host.includes('ic0.app') || host.includes('icp0.io')
