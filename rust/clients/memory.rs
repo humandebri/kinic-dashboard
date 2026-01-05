@@ -56,17 +56,6 @@ impl MemoryClient {
     pub fn canister_id(&self) -> &Principal {
         &self.canister_id
     }
-
-    pub async fn update_instance(&self, instance_pid_str: String) -> Result<()> {
-        let payload = encode_update_instance_args(instance_pid_str)?;
-        self.agent
-            .update(&self.canister_id, "update_instance")
-            .with_arg(payload)
-            .call_and_wait()
-            .await
-            .context("Failed to call update_instance on memory canister")?;
-        Ok(())
-    }
 }
 
 fn encode_insert_args(embedding: Vec<f32>, text: &str) -> Result<Vec<u8>> {
@@ -77,7 +66,4 @@ fn encode_search_args(embedding: Vec<f32>) -> Result<Vec<u8>> {
 }
 fn encode_add_user_args(principal: Principal, role: u8) -> Result<Vec<u8>> {
     Ok(candid::encode_args((principal, role))?)
-}
-fn encode_update_instance_args(instance_pid_str: String) -> Result<Vec<u8>> {
-    Ok(candid::encode_one(instance_pid_str)?)
 }

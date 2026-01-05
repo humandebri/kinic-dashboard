@@ -5,17 +5,17 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use ic_agent::identity::{BasicIdentity, DelegatedIdentity, DelegationError, SignedDelegation};
-use ic_agent::Identity;
 use der::{Decode, SliceReader};
+use ic_agent::Identity;
 use ic_agent::export::Principal;
+use ic_agent::identity::{BasicIdentity, DelegatedIdentity, DelegationError, SignedDelegation};
 use ic_ed25519::PublicKey;
 use pkcs8::{ObjectIdentifier, spki::SubjectPublicKeyInfoRef};
-use tracing::warn;
 use ring::signature::Ed25519KeyPair;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
+use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredIdentity {
@@ -60,12 +60,11 @@ pub fn load_delegated_identity(path: &Path) -> Result<DelegatedIdentity> {
         serde_json::from_str(&payload).context("Failed to parse identity.json")?;
     ensure_not_expired(&stored)?;
 
-    let user_public_key_raw = hex::decode(&stored.user_public_key_hex)
-        .context("Failed to decode user public key")?;
-    let user_public_key = normalize_spki_key(&user_public_key_raw)
-        .context("Unsupported user public key format")?;
-    let pkcs8 = hex::decode(&stored.session_pkcs8_hex)
-        .context("Failed to decode session key")?;
+    let user_public_key_raw =
+        hex::decode(&stored.user_public_key_hex).context("Failed to decode user public key")?;
+    let user_public_key =
+        normalize_spki_key(&user_public_key_raw).context("Unsupported user public key format")?;
+    let pkcs8 = hex::decode(&stored.session_pkcs8_hex).context("Failed to decode session key")?;
     let key_pair =
         Ed25519KeyPair::from_pkcs8(&pkcs8).map_err(|_| anyhow!("Invalid session key"))?;
     let session_identity = BasicIdentity::from_key_pair(key_pair);
@@ -91,8 +90,8 @@ pub fn load_delegated_identity(path: &Path) -> Result<DelegatedIdentity> {
         Err(DelegationError::UnknownAlgorithm) => {
             warn!("Delegation chain uses an unknown algorithm; skipping local verification.");
             eprintln!("Warning: delegation uses an unknown algorithm; skipped local verification.");
-            let key_pair = Ed25519KeyPair::from_pkcs8(&pkcs8)
-                .map_err(|_| anyhow!("Invalid session key"))?;
+            let key_pair =
+                Ed25519KeyPair::from_pkcs8(&pkcs8).map_err(|_| anyhow!("Invalid session key"))?;
             let session_identity = BasicIdentity::from_key_pair(key_pair);
             Ok(DelegatedIdentity::new_unchecked(
                 user_public_key,
@@ -106,8 +105,8 @@ pub fn load_delegated_identity(path: &Path) -> Result<DelegatedIdentity> {
 
 pub fn derive_principal_from_user_key(user_public_key_raw: &[u8]) -> Result<Principal> {
     // Internet Identity may return either SPKI DER or raw Ed25519. Normalize to SPKI before deriving.
-    let user_public_key = normalize_spki_key(user_public_key_raw)
-        .context("Unsupported user public key format")?;
+    let user_public_key =
+        normalize_spki_key(user_public_key_raw).context("Unsupported user public key format")?;
     Ok(Principal::self_authenticating(&user_public_key))
 }
 
@@ -130,7 +129,12 @@ pub fn save_identity(path: &Path, stored: &StoredIdentity) -> Result<()> {
             .create(true)
             .truncate(true)
             .open(&tmp_path)
-            .with_context(|| format!("Failed to open temp identity file at {}", tmp_path.display()))?;
+            .with_context(|| {
+                format!(
+                    "Failed to open temp identity file at {}",
+                    tmp_path.display()
+                )
+            })?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -150,7 +154,6 @@ pub fn save_identity(path: &Path, stored: &StoredIdentity) -> Result<()> {
     })?;
     Ok(())
 }
-
 
 fn ensure_not_expired(stored: &StoredIdentity) -> Result<()> {
     let now = SystemTime::now()
@@ -190,17 +193,18 @@ pub fn normalize_spki_key(bytes: &[u8]) -> Result<Vec<u8>> {
         return Ok(bytes.to_vec());
     }
     if bytes.len() == 32 {
-        let public_key = PublicKey::deserialize_raw(bytes)
-            .map_err(|_| anyhow!("Invalid Ed25519 raw key"))?;
+        let public_key =
+            PublicKey::deserialize_raw(bytes).map_err(|_| anyhow!("Invalid Ed25519 raw key"))?;
         return Ok(public_key.serialize_rfc8410_der());
     }
     Err(anyhow!("Unknown public key encoding"))
 }
 
 fn is_canister_signature_key(bytes: &[u8]) -> Result<bool> {
-    let spki =
-        SubjectPublicKeyInfoRef::decode(&mut SliceReader::new(bytes).map_err(|_| anyhow!("parse"))?)
-            .map_err(|_| anyhow!("parse"))?;
+    let spki = SubjectPublicKeyInfoRef::decode(
+        &mut SliceReader::new(bytes).map_err(|_| anyhow!("parse"))?,
+    )
+    .map_err(|_| anyhow!("parse"))?;
     let canister_sig_oid = ObjectIdentifier::new_unwrap("1.3.6.1.4.1.56387.1.2");
     Ok(spki.algorithm.oid == canister_sig_oid)
 }

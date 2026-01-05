@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, fs, path::PathBuf};
 
-use anyhow::{anyhow, Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use ic_agent::export::Principal;
 use serde_json::json;
 
@@ -11,8 +11,8 @@ use crate::{
         launcher::{LauncherClient, State},
         memory::MemoryClient,
     },
+    commands::ask_ai::{AskAiResult, ask_ai_flow},
     commands::convert_pdf,
-    commands::ask_ai::{ask_ai_flow, AskAiResult},
     embedding::{fetch_embedding, late_chunking},
 };
 use icrc_ledger_types::icrc1::account::Account;
@@ -79,15 +79,7 @@ pub(crate) async fn insert_memory_pdf(
     file_path: PathBuf,
 ) -> Result<usize> {
     let markdown = convert_pdf::pdf_to_markdown(&file_path)?;
-    insert_memory(
-        use_mainnet,
-        identity,
-        memory_id,
-        tag,
-        Some(markdown),
-        None,
-    )
-    .await
+    insert_memory(use_mainnet, identity, memory_id, tag, Some(markdown), None).await
 }
 
 pub(crate) async fn search_memories(
@@ -226,8 +218,7 @@ fn parse_principal(user_id: &str, role_code: u8) -> Result<Principal> {
         }
         Ok(Principal::anonymous())
     } else {
-        Principal::from_text(user_id)
-            .with_context(|| format!("invalid principal text: {user_id}"))
+        Principal::from_text(user_id).with_context(|| format!("invalid principal text: {user_id}"))
     }
 }
 

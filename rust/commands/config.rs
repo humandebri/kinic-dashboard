@@ -2,10 +2,7 @@ use anyhow::{Context, Result, bail};
 use ic_agent::export::Principal;
 use tracing::info;
 
-use crate::{
-    cli::ConfigArgs,
-    clients::memory::MemoryClient,
-};
+use crate::{cli::ConfigArgs, clients::memory::MemoryClient};
 
 use super::CommandContext;
 
@@ -49,7 +46,6 @@ impl Role {
         }
     }
 
-    #[allow(dead_code)]
     fn code(&self) -> u8 {
         match self {
             Role::Admin => 1,
@@ -87,6 +83,7 @@ fn parse_add_user(values: Vec<String>) -> Result<(Principal, Role)> {
 
 async fn build_memory_client(id: &str, ctx: &CommandContext) -> Result<MemoryClient> {
     let agent = ctx.agent_factory.build().await?;
-    let memory = Principal::from_text(id).context("Failed to parse canister id for config command")?;
+    let memory =
+        Principal::from_text(id).context("Failed to parse canister id for config command")?;
     Ok(MemoryClient::new(agent, memory))
 }

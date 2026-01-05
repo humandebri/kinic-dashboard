@@ -2,17 +2,17 @@ use anyhow::Result;
 
 use crate::{agent::AgentFactory, cli::Command};
 
-pub mod create;
+pub mod ask_ai;
+pub mod balance;
 pub mod config;
+pub mod convert_pdf;
+pub mod create;
 pub mod insert;
 pub mod insert_pdf;
 pub mod list;
-pub mod convert_pdf;
+pub mod login;
 pub mod search;
 pub mod update;
-pub mod balance;
-pub mod ask_ai;
-pub mod login;
 
 #[derive(Clone)]
 pub struct CommandContext {

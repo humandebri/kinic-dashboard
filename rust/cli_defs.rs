@@ -120,7 +120,12 @@ pub struct InsertPdfArgs {
     )]
     pub memory_id: String,
 
-    #[arg(long, value_name = "PATH", required = true, help = "PDF file to convert to markdown and insert")]
+    #[arg(
+        long,
+        value_name = "PATH",
+        required = true,
+        help = "PDF file to convert to markdown and insert"
+    )]
     pub file_path: PathBuf,
 
     #[arg(long, required = true, help = "Tag metadata stored alongside the text")]
@@ -129,7 +134,12 @@ pub struct InsertPdfArgs {
 
 #[derive(Args, Debug)]
 pub struct ConvertPdfArgs {
-    #[arg(long, value_name = "PATH", required = true, help = "PDF file to convert to markdown")]
+    #[arg(
+        long,
+        value_name = "PATH",
+        required = true,
+        help = "PDF file to convert to markdown"
+    )]
     pub file_path: PathBuf,
 }
 
@@ -199,5 +209,4 @@ pub struct AskAiArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct LoginArgs {
-}
+pub struct LoginArgs {}

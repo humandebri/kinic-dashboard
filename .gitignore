@@ -27,3 +27,7 @@ pip-wheel-metadata/
 .DS_Store
 .idea/
 .vscode/
+
+#web
+.next/
+node_modules/

@@ -17,12 +17,8 @@ use crate::{
     cli::LoginArgs,
     commands::CommandContext,
     identity_store::{
-        SessionKeyMaterial,
-        StoredIdentity,
-        derive_principal_from_user_key,
-        generate_session_key,
-        normalize_spki_key,
-        save_identity,
+        SessionKeyMaterial, StoredIdentity, derive_principal_from_user_key, generate_session_key,
+        normalize_spki_key, save_identity,
     },
 };
 
@@ -255,7 +251,7 @@ async fn handle_connection(stream: &mut TcpStream, html: &str) -> Result<Option<
         ("GET", "/") => {
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
-                html.as_bytes().len(),
+                html.len(),
                 html
             );
             stream.write_all(response.as_bytes()).await?;
@@ -273,7 +269,7 @@ async fn handle_connection(stream: &mut TcpStream, html: &str) -> Result<Option<
             .to_string();
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                body.as_bytes().len(),
+                body.len(),
                 body
             );
             stream.write_all(response.as_bytes()).await?;
@@ -283,7 +279,7 @@ async fn handle_connection(stream: &mut TcpStream, html: &str) -> Result<Option<
             let body = "Not found";
             let response = format!(
                 "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
-                body.as_bytes().len(),
+                body.len(),
                 body
             );
             stream.write_all(response.as_bytes()).await?;
@@ -320,7 +316,9 @@ async fn read_request(stream: &mut TcpStream) -> Result<HttpRequest> {
     let mut body = buffer[(header_end + 4)..].to_vec();
     let header_text = String::from_utf8_lossy(header_bytes);
     let mut lines = header_text.lines();
-    let request_line = lines.next().ok_or_else(|| anyhow!("Missing request line"))?;
+    let request_line = lines
+        .next()
+        .ok_or_else(|| anyhow!("Missing request line"))?;
     let mut parts = request_line.split_whitespace();
     let method = parts
         .next()
@@ -362,8 +360,8 @@ fn convert_delegations(
     entries
         .into_iter()
         .map(|entry| {
-            let normalized_pubkey =
-                normalize_spki_key(&entry.delegation.pubkey).context("Unsupported delegation public key format")?;
+            let normalized_pubkey = normalize_spki_key(&entry.delegation.pubkey)
+                .context("Unsupported delegation public key format")?;
             if normalized_pubkey != expected_pubkey {
                 anyhow::bail!("Delegation public key does not match session key");
             }
@@ -371,7 +369,7 @@ fn convert_delegations(
                 Some(list) => {
                     let principals = list
                         .into_iter()
-                        .map(|target| Principal::from_text(target))
+                        .map(Principal::from_text)
                         .collect::<Result<Vec<_>, _>>()
                         .context("Invalid delegation target principal")?;
                     Some(principals)
@@ -468,7 +466,9 @@ where
         where
             E: serde::de::Error,
         {
-            value.parse::<u64>().map_err(|_| E::custom("invalid number"))
+            value
+                .parse::<u64>()
+                .map_err(|_| E::custom("invalid number"))
         }
     }
 
