@@ -1,6 +1,7 @@
 // Where: Dashboard sidebar navigation data.
 // What: Sectioned menu items with icons and labels.
 // Why: Keeps layout component focused on rendering.
+import type { ReactNode } from 'react'
 import {
   ArrowRightLeftIcon,
   CalendarClockIcon,
@@ -8,18 +9,15 @@ import {
   ChartPieIcon,
   ChartSplineIcon,
   CirclePlusIcon,
-  Clock9Icon,
-  CrownIcon,
   HashIcon,
   SettingsIcon,
-  SquareActivityIcon,
   Undo2Icon
 } from 'lucide-react'
 
 export type SidebarLink = {
   label: string
   href: string
-  icon: JSX.Element
+  icon: ReactNode
   badge?: string
 }
 

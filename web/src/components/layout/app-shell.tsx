@@ -3,7 +3,14 @@
 // Why: Keeps navigation and identity controls consistent across pages.
 'use client'
 
-import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+  type ReactNode
+} from 'react'
 import { GithubIcon, RefreshCwIcon, TwitterIcon, UserIcon } from 'lucide-react'
 import { Principal } from '@dfinity/principal'
 
@@ -137,7 +144,7 @@ const AppShell = ({
     event.stopPropagation()
   }
 
-  const handleBalanceRefreshKeyDown = (event: KeyboardEvent) => {
+  const handleBalanceRefreshKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
     if (balance.isLoading) return
@@ -185,14 +192,18 @@ const AppShell = ({
     setSendSuccess(null)
 
     try {
+      const emptySubaccount: [] = []
+      const emptyMemo: [] = []
+      const emptyFee: [] = []
+      const createdAtTime: [bigint] = [BigInt(Date.now()) * 1_000_000n]
       const actor = await createLedgerActor(identityState.identity)
       const height = await transferIcrc1(actor, {
-        from_subaccount: [],
-        to: { owner: destination, subaccount: [] },
+        from_subaccount: emptySubaccount,
+        to: { owner: destination, subaccount: emptySubaccount },
         amount: parsed.value,
-        fee: [],
-        memo: [],
-        created_at_time: [BigInt(Date.now()) * 1_000_000n]
+        fee: emptyFee,
+        memo: emptyMemo,
+        created_at_time: createdAtTime
       })
       setSendSuccess(`Transfer submitted (block ${height.toString()}).`)
       balance.refresh()

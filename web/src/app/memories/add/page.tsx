@@ -134,15 +134,19 @@ const AddMemoryPage = () => {
     setTransferHeight(null)
 
     try {
+      const emptySubaccount: [] = []
+      const emptyMemo: [] = []
+      const emptyFee: [] = []
+      const createdAtTime: [bigint] = [BigInt(Date.now()) * 1_000_000n]
       // Wallet sends funds to the II principal before approve/deploy.
       const destination = Principal.fromText(identityState.principalText)
       const args = {
-        from_subaccount: [],
-        to: { owner: destination, subaccount: [] },
+        from_subaccount: emptySubaccount,
+        to: { owner: destination, subaccount: emptySubaccount },
         amount: transferAmount,
-        fee: [],
-        memo: [],
-        created_at_time: [BigInt(Date.now()) * 1_000_000n]
+        fee: emptyFee,
+        memo: emptyMemo,
+        created_at_time: createdAtTime
       }
 
       if (wallet.kind === 'plug') {
@@ -150,8 +154,12 @@ const AddMemoryPage = () => {
         const height = await transferIcrc1(actor, args)
         setTransferHeight(height)
       } else {
+        const emptyLedgerSubaccount: [] = []
         const icrcParams: TransferParams = {
-          to: { owner: IcrcPrincipal.fromText(identityState.principalText) },
+          to: {
+            owner: IcrcPrincipal.fromText(identityState.principalText),
+            subaccount: emptyLedgerSubaccount
+          },
           amount: transferAmount,
           created_at_time: BigInt(Date.now()) * 1_000_000n,
           from_subaccount: wallet.account.subaccount ?? undefined

@@ -87,8 +87,7 @@ const ProfileDropdown = ({
         </DropdownMenuGroup>
 
         <DropdownMenuItem
-          variant='destructive'
-          className='px-4 py-2.5 text-base'
+          className='px-4 py-2.5 text-base text-red-600 focus:text-red-600'
           onClick={onDisconnect}
         >
           <LogOutIcon className='size-5' />

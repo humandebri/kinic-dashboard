@@ -3,11 +3,11 @@
 // Why: Keeps PDF parsing logic out of page components.
 'use client'
 
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf'
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api'
 
 const PDF_WORKER_SRC =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js'
 
 type TextContentItem = TextItem | TextMarkedContent
 
