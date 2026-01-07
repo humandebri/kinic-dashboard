@@ -3,7 +3,7 @@
 // Why: Lets the CLI receive a delegation without server-side storage.
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const II_ORIGIN = 'https://id.ai'
@@ -147,9 +147,10 @@ const encryptPayload = async (
     throw new Error('Invalid box public key')
   }
 
+  const publicKeyBuffer = Uint8Array.from(publicKeyBytes).buffer
   const importedKey = await crypto.subtle.importKey(
     'raw',
-    publicKeyBytes,
+    publicKeyBuffer,
     { name: 'ECDH', namedCurve: 'P-256' },
     false,
     []
@@ -181,7 +182,7 @@ const encryptPayload = async (
   }
 }
 
-const CliLoginPage = () => {
+const CliLoginContent = () => {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState('Ready to connect Internet Identity.')
   const [error, setError] = useState<string | null>(null)
@@ -329,6 +330,14 @@ const CliLoginPage = () => {
         {isOpening ? 'Opening...' : 'Open Internet Identity'}
       </button>
     </main>
+  )
+}
+
+const CliLoginPage = () => {
+  return (
+    <Suspense fallback={<div className='px-6 py-16 text-sm text-zinc-600'>Loading...</div>}>
+      <CliLoginContent />
+    </Suspense>
   )
 }
 
