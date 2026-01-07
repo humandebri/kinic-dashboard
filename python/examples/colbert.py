@@ -4,25 +4,24 @@ Based on the model card instructions:
 https://huggingface.co/LiquidAI/LFM2-ColBERT-350M
 """
 
+import json
+from typing import Iterable, List, Sequence, Tuple
+
+from kinic_py import KinicMemories
 from pylate import indexes, models, rank, retrieve
 
 
-def build_index(model: models.ColBERT) -> indexes.PLAID:
-    # Match the model card: use the EOS token for padding.
-    model.tokenizer.pad_token = model.tokenizer.eos_token
+def retrieval_and_rerank(model: models.ColBERT, kinic: KinicMemories) -> None:
+    memory_id = kinic.create("ColBERT demo", "Created from colbert.py example")
 
-    # Create a PLAID index to store document embeddings on disk.
-    index = indexes.PLAID(
-        index_folder="pylate-index",
-        index_name="index",
-        override=True,
-    )
+    documents_ids = ["doc-1", "doc-2", "doc-3"]
+    documents = [
+        "document 1 text",
+        "document 2 text",
+        "document 3 text",
+    ]
 
-    # Example documents and their IDs.
-    documents_ids = ["1", "2", "3"]
-    documents = ["document 1 text", "document 2 text", "document 3 text"]
-
-    # Encode documents (is_query=False for document embeddings).
+    # Build a bag-of-embeddings for each document and insert each token vector with the doc tag.
     documents_embeddings = model.encode(
         documents,
         batch_size=32,
@@ -30,88 +29,84 @@ def build_index(model: models.ColBERT) -> indexes.PLAID:
         show_progress_bar=True,
     )
 
-    # Add embeddings to the index.
-    index.add_documents(
-        documents_ids=documents_ids,
-        documents_embeddings=documents_embeddings,
-    )
+    for doc_id, doc_text, token_embeddings in zip(
+        documents_ids, documents, documents_embeddings
+    ):
+        for token_embedding in as_matrix(token_embeddings):
+            kinic.insert_raw(memory_id, doc_id, doc_text, token_embedding)
 
-    return index
-
-
-def retrieve_top_k(index: indexes.PLAID, model: models.ColBERT) -> None:
-    # Initialize the retriever with the existing index.
-    retriever = retrieve.ColBERT(index=index)
-
-    # Encode queries (is_query=True for query embeddings).
-    queries_embeddings = model.encode(
-        ["query for document 3", "query for document 1"],
-        batch_size=32,
-        is_query=True,
-        show_progress_bar=True,
-    )
-
-    # Retrieve top-k document scores for each query.
-    scores = retriever.retrieve(
-        queries_embeddings=queries_embeddings,
-        k=10,
-    )
-
-    print("retrieval scores:", scores)
-
-
-def rerank_example(model: models.ColBERT) -> None:
-    # Example reranking inputs: queries with candidate documents.
-    queries = [
-        "query A",
-        "query B",
-    ]
-
-    documents = [
-        ["document A", "document B"],
-        ["document 1", "document C", "document B"],
-    ]
-
-    documents_ids = [
-        [1, 2],
-        [1, 3, 2],
-    ]
-
-    # Encode queries and candidate documents for reranking.
+    queries = ["query for document 3", "query for document 1"]
     queries_embeddings = model.encode(
         queries,
+        batch_size=32,
         is_query=True,
+        show_progress_bar=True,
     )
 
-    documents_embeddings = model.encode(
-        documents,
-        is_query=False,
+    for query, query_embeddings in zip(queries, queries_embeddings):
+        query_vectors = as_matrix(query_embeddings)
+        candidate_tags = collect_candidate_tags(kinic, memory_id, query_vectors)
+        reranked = rerank_by_maxsim(kinic, memory_id, query_vectors, candidate_tags)
+        print(f"query: {query}")
+        print("reranked:", reranked)
+
+
+def as_matrix(embeddings: object) -> List[List[float]]:
+    if hasattr(embeddings, "tolist"):
+        return embeddings.tolist()
+    if isinstance(embeddings, list):
+        return embeddings
+    return list(embeddings)
+
+
+def collect_candidate_tags(
+    kinic: KinicMemories,
+    memory_id: str,
+    query_vectors: Sequence[Sequence[float]],
+    *,
+    per_vector_limit: int = 5,
+) -> List[str]:
+    tags = []
+    seen = set()
+    for vector in query_vectors:
+        results = kinic.search_raw(memory_id, vector)
+        for score, payload in results[:per_vector_limit]:
+            tag = parse_tag(payload)
+            if tag and tag not in seen:
+                seen.add(tag)
+                tags.append(tag)
+    return tags
+
+
+def parse_tag(payload: str) -> str | None:
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(data, dict):
+        return data.get("tag")
+    return None
+
+
+def rerank_by_maxsim(
+    kinic: KinicMemories,
+    memory_id: str,
+    query_vectors: Sequence[Sequence[float]],
+    candidate_tags: Iterable[str],
+) -> List[Tuple[str, float]]:
+    # Fetch each candidate's bag-of-embeddings from the memory canister.
+    documents_ids = list(candidate_tags)
+    documents_embeddings = [
+        kinic.tagged_embeddings(memory_id, tag) for tag in documents_ids
+    ]
+
+    # Use PyLate's MaxSim-based reranker for late interaction scoring.
+    reranked = rank.rerank(
+        documents_ids=[documents_ids],
+        queries_embeddings=[query_vectors],
+        documents_embeddings=[documents_embeddings],
     )
-
-    # Compute reranked order based on MaxSim similarity.
-    reranked_documents = rank.rerank(
-        documents_ids=documents_ids,
-        queries_embeddings=queries_embeddings,
-        documents_embeddings=documents_embeddings,
-    )
-
-    print("reranked documents:", reranked_documents)
-
-
-def retrieval_and_rerank(model: models.ColBERT):
-    # todo:
-    # 1. kinicのメモリを初期化する
-    # 2. documentsをいくつか用意する
-    # 3. それらのbag-of-embeddingsを作る
-    # 4. bag-of-embeddingsのvectorsを、同じdocument-idでタグ付けして、insertする
-    # 5. queryを用意する
-    # 6. queryのbag-of-embeddingsを作る
-    # 7. 全てのvectorsに対して、dbに検索をかける
-    # 8. 結果として得られたdocument-id(tagのこと)をまとめる
-    # 9. 全てのtagごとに、memory.tagged_embeddings(tag)を呼んで、tagごとのbag-of-embeddingsを得る
-    # 10. MaxSimで、documentをrerankする
-
-    return
+    return reranked[0]
 
 
 def main() -> None:
@@ -119,11 +114,8 @@ def main() -> None:
     model = models.ColBERT(
         model_name_or_path="LiquidAI/LFM2-ColBERT-350M",
     )
-
-    # Create a new vector-database
-    index = KinicMemories("alice")
-
-    retrieval_and_rerank(model)
+    kinic = KinicMemories("alice")
+    retrieval_and_rerank(model, kinic)
 
 
 if __name__ == "__main__":
