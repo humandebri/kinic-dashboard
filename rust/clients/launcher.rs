@@ -165,10 +165,13 @@ enum DeployInstanceError {
     AlreadyRunning,
 }
 
-#[derive(CandidType, candid::Deserialize, Clone, Debug)]
+#[derive(CandidType, candid::Deserialize, Clone, Debug, Error)]
 enum TransferResponseError {
+    #[error("icrc1 transfer error: {0:?}")]
     TransferError(TransferError),
+    #[error("icrc2 transfer_from error: {0:?}")]
     TransferFromError(TransferFromError),
+    #[error("ledger call rejected: {0}")]
     CallReject(String),
 }
 
