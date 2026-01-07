@@ -33,6 +33,10 @@ class KinicMemories:
         """Insert markdown loaded from disk."""
         return insert_markdown_file(self.identity, memory_id, tag, path, ic=self.ic)
 
+    def insert_raw(self, memory_id: str, tag: str, text: str, embedding: Sequence[float]) -> int:
+        """Insert a precomputed embedding with text."""
+        return insert_raw(self.identity, memory_id, tag, text, embedding, ic=self.ic)
+
     def insert_pdf_file(self, memory_id: str, tag: str, path: str) -> int:
         """Convert a PDF to markdown and insert it."""
         return insert_pdf_file(self.identity, memory_id, tag, path, ic=self.ic)
@@ -55,6 +59,14 @@ class KinicMemories:
     def search(self, memory_id: str, query: str) -> ScoreResult:
         """Search the specified memory canister."""
         return search_memories(self.identity, memory_id, query, ic=self.ic)
+
+    def search_raw(self, memory_id: str, embedding: Sequence[float]) -> ScoreResult:
+        """Search using a precomputed embedding."""
+        return search_raw(self.identity, memory_id, embedding, ic=self.ic)
+
+    def tagged_embeddings(self, memory_id: str, tag: str) -> List[List[float]]:
+        """Fetch all embeddings associated with a tag."""
+        return tagged_embeddings(self.identity, memory_id, tag, ic=self.ic)
 
     def ask_ai(
         self,
@@ -81,6 +93,10 @@ class KinicMemories:
     def update(self, memory_id: str) -> None:
         """Trigger launcher update_instance for the memory canister."""
         update_instance(self.identity, memory_id, ic=self.ic)
+
+    def reset(self, memory_id: str, dim: int) -> None:
+        """Reset a memory canister and set embedding dimension."""
+        reset_memory(self.identity, memory_id, dim, ic=self.ic)
 
     def add_user(self, memory_id: str, user_id: str, role: str) -> None:
         """Configure visibility: add a user (principal or 'anonymous') with a role (admin/writer/reader)."""
@@ -121,6 +137,18 @@ def insert_markdown_file(
     ic: bool | None = None,
 ) -> int:
     return native.insert_memory(identity, memory_id, tag, file_path=path, ic=ic)
+
+
+def insert_raw(
+    identity: str,
+    memory_id: str,
+    tag: str,
+    text: str,
+    embedding: Sequence[float],
+    *,
+    ic: bool | None = None,
+) -> int:
+    return native.insert_memory_raw(identity, memory_id, tag, text, list(embedding), ic=ic)
 
 
 def insert_pdf_file(
@@ -180,6 +208,26 @@ def search_memories(
     return native.search_memories(identity, memory_id, query, ic=ic)
 
 
+def search_raw(
+    identity: str,
+    memory_id: str,
+    embedding: Sequence[float],
+    *,
+    ic: bool | None = None,
+) -> ScoreResult:
+    return native.search_memories_raw(identity, memory_id, list(embedding), ic=ic)
+
+
+def tagged_embeddings(
+    identity: str,
+    memory_id: str,
+    tag: str,
+    *,
+    ic: bool | None = None,
+) -> List[List[float]]:
+    return native.tagged_embeddings(identity, memory_id, tag, ic=ic)
+
+
 def ask_ai(
     identity: str,
     memory_id: str,
@@ -198,6 +246,16 @@ def get_balance(identity: str, *, ic: bool | None = None) -> tuple[int, float]:
 
 def update_instance(identity: str, memory_id: str, *, ic: bool | None = None) -> None:
     return native.update_instance(identity, memory_id, ic=ic)
+
+
+def reset_memory(
+    identity: str,
+    memory_id: str,
+    dim: int,
+    *,
+    ic: bool | None = None,
+) -> None:
+    return native.reset_memory(identity, memory_id, dim, ic=ic)
 
 
 def add_user(

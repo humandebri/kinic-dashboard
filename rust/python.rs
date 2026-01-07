@@ -71,6 +71,24 @@ pub(crate) async fn insert_memory(
     Ok(chunk_count)
 }
 
+pub(crate) async fn insert_memory_raw(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    tag: String,
+    text: String,
+    embedding: Vec<f32>,
+) -> Result<usize> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    let payload = json!({
+        "tag": &tag,
+        "sentence": &text
+    })
+    .to_string();
+    client.insert(embedding, &payload).await?;
+    Ok(1)
+}
+
 pub(crate) async fn insert_memory_pdf(
     use_mainnet: bool,
     identity: String,
@@ -101,6 +119,28 @@ pub(crate) async fn search_memories(
     let mut results = client.search(embedding).await?;
     results.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
     Ok(results)
+}
+
+pub(crate) async fn search_memories_raw(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    embedding: Vec<f32>,
+) -> Result<Vec<(f32, String)>> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    let mut results = client.search(embedding).await?;
+    results.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
+    Ok(results)
+}
+
+pub(crate) async fn tagged_embeddings(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    tag: String,
+) -> Result<Vec<Vec<f32>>> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    client.tagged_embeddings(tag).await
 }
 
 pub(crate) async fn ask_ai(
@@ -184,6 +224,16 @@ pub(crate) async fn update_instance(
         .update_instance(&pid)
         .await
         .context("Failed to update instance via launcher canister")
+}
+
+pub(crate) async fn reset_memory(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    dim: usize,
+) -> Result<()> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    client.reset(dim).await
 }
 
 async fn build_memory_client(

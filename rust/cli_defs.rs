@@ -43,16 +43,24 @@ pub enum Command {
     List(ListArgs),
     #[command(about = "Insert text into an existing memory canister")]
     Insert(InsertArgs),
+    #[command(about = "Insert a precomputed embedding into a memory canister")]
+    InsertRaw(InsertRawArgs),
     #[command(about = "Insert a PDF (converted to markdown) into an existing memory canister")]
     InsertPdf(InsertPdfArgs),
     #[command(about = "Convert a PDF to markdown and print it (no insert)")]
     ConvertPdf(ConvertPdfArgs),
     #[command(about = "Search within a memory canister using embeddings")]
     Search(SearchArgs),
+    #[command(about = "Search within a memory canister using a precomputed embedding")]
+    SearchRaw(SearchRawArgs),
+    #[command(about = "Fetch embeddings for a tag from a memory canister")]
+    TaggedEmbeddings(TaggedEmbeddingsArgs),
     #[command(about = "Manage Kinic CLI configuration")]
     Config(ConfigArgs),
     #[command(about = "Update a memory canister instance")]
     Update(UpdateArgs),
+    #[command(about = "Reset a memory canister and set embedding dimension")]
+    Reset(ResetArgs),
     #[command(about = "Check KINIC token balance for the current identity")]
     Balance(BalanceArgs),
     #[command(about = "Ask Kinic AI using memory search results (LLM placeholder)")]
@@ -96,6 +104,29 @@ pub struct InsertArgs {
 }
 
 #[derive(Args, Debug)]
+pub struct InsertRawArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the target memory canister"
+    )]
+    pub memory_id: String,
+
+    #[arg(
+        long,
+        required = true,
+        help = "Embedding as a JSON array of floats, e.g. [0.1, 0.2]"
+    )]
+    pub embedding: String,
+
+    #[arg(long, required = true, help = "Text payload to store with the embedding")]
+    pub text: String,
+
+    #[arg(long, required = true, help = "Tag metadata stored alongside the text")]
+    pub tag: String,
+}
+
+#[derive(Args, Debug)]
 pub struct InsertPdfArgs {
     #[arg(
         long,
@@ -131,6 +162,36 @@ pub struct SearchArgs {
 }
 
 #[derive(Args, Debug)]
+pub struct SearchRawArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the memory canister to search"
+    )]
+    pub memory_id: String,
+
+    #[arg(
+        long,
+        required = true,
+        help = "Embedding as a JSON array of floats, e.g. [0.1, 0.2]"
+    )]
+    pub embedding: String,
+}
+
+#[derive(Args, Debug)]
+pub struct TaggedEmbeddingsArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the memory canister to query"
+    )]
+    pub memory_id: String,
+
+    #[arg(long, required = true, help = "Tag to fetch embeddings for")]
+    pub tag: String,
+}
+
+#[derive(Args, Debug)]
 pub struct ConfigArgs {
     #[arg(
         long,
@@ -156,6 +217,19 @@ pub struct UpdateArgs {
         help = "Principal of the target memory canister to update"
     )]
     pub memory_id: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ResetArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the target memory canister to reset"
+    )]
+    pub memory_id: String,
+
+    #[arg(long, required = true, help = "Embedding dimension to set after reset")]
+    pub dim: usize,
 }
 
 #[derive(Args, Debug)]

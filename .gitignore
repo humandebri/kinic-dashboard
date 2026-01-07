@@ -23,6 +23,9 @@ pip-wheel-metadata/
 .ruff_cache/
 .coverage
 
+# PyLate/ColBERT artifacts
+pylate-index/
+
 # editor / OS cruft
 .DS_Store
 .idea/

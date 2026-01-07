@@ -55,11 +55,15 @@ fn _lib(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_memory, m)?)?;
     m.add_function(wrap_pyfunction!(list_memories, m)?)?;
     m.add_function(wrap_pyfunction!(insert_memory, m)?)?;
+    m.add_function(wrap_pyfunction!(insert_memory_raw, m)?)?;
     m.add_function(wrap_pyfunction!(insert_memory_pdf, m)?)?;
     m.add_function(wrap_pyfunction!(search_memories, m)?)?;
+    m.add_function(wrap_pyfunction!(search_memories_raw, m)?)?;
+    m.add_function(wrap_pyfunction!(tagged_embeddings, m)?)?;
     m.add_function(wrap_pyfunction!(ask_ai, m)?)?;
     m.add_function(wrap_pyfunction!(get_balance, m)?)?;
     m.add_function(wrap_pyfunction!(update_instance, m)?)?;
+    m.add_function(wrap_pyfunction!(reset_memory, m)?)?;
     m.add_function(wrap_pyfunction!(add_user, m)?)?;
     Ok(())
 }
@@ -127,6 +131,28 @@ fn insert_memory(
 
 #[cfg(feature = "python-bindings")]
 #[pyfunction]
+#[pyo3(signature = (identity, memory_id, tag, text, embedding, ic=None))]
+fn insert_memory_raw(
+    identity: &str,
+    memory_id: &str,
+    tag: &str,
+    text: &str,
+    embedding: Vec<f32>,
+    ic: Option<bool>,
+) -> PyResult<usize> {
+    let ic = ic.unwrap_or(false);
+    block_on_py(python::insert_memory_raw(
+        ic,
+        identity.to_string(),
+        memory_id.to_string(),
+        tag.to_string(),
+        text.to_string(),
+        embedding,
+    ))
+}
+
+#[cfg(feature = "python-bindings")]
+#[pyfunction]
 #[pyo3(signature = (identity, memory_id, tag, file_path, ic=None))]
 fn insert_memory_pdf(
     identity: &str,
@@ -160,6 +186,42 @@ fn search_memories(
         identity.to_string(),
         memory_id.to_string(),
         query.to_string(),
+    ))
+}
+
+#[cfg(feature = "python-bindings")]
+#[pyfunction]
+#[pyo3(signature = (identity, memory_id, embedding, ic=None))]
+fn search_memories_raw(
+    identity: &str,
+    memory_id: &str,
+    embedding: Vec<f32>,
+    ic: Option<bool>,
+) -> PyResult<Vec<(f32, String)>> {
+    let ic = ic.unwrap_or(false);
+    block_on_py(python::search_memories_raw(
+        ic,
+        identity.to_string(),
+        memory_id.to_string(),
+        embedding,
+    ))
+}
+
+#[cfg(feature = "python-bindings")]
+#[pyfunction]
+#[pyo3(signature = (identity, memory_id, tag, ic=None))]
+fn tagged_embeddings(
+    identity: &str,
+    memory_id: &str,
+    tag: &str,
+    ic: Option<bool>,
+) -> PyResult<Vec<Vec<f32>>> {
+    let ic = ic.unwrap_or(false);
+    block_on_py(python::tagged_embeddings(
+        ic,
+        identity.to_string(),
+        memory_id.to_string(),
+        tag.to_string(),
     ))
 }
 
@@ -204,6 +266,24 @@ fn update_instance(identity: &str, memory_id: &str, ic: Option<bool>) -> PyResul
         ic,
         identity.to_string(),
         memory_id.to_string(),
+    ))
+}
+
+#[cfg(feature = "python-bindings")]
+#[pyfunction]
+#[pyo3(signature = (identity, memory_id, dim, ic=None))]
+fn reset_memory(
+    identity: &str,
+    memory_id: &str,
+    dim: usize,
+    ic: Option<bool>,
+) -> PyResult<()> {
+    let ic = ic.unwrap_or(false);
+    block_on_py(python::reset_memory(
+        ic,
+        identity.to_string(),
+        memory_id.to_string(),
+        dim,
     ))
 }
 
