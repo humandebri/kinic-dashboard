@@ -1,9 +1,7 @@
-use anyhow::{Context, Result, anyhow};
-use ic_agent::export::Principal;
-use icrc_ledger_types::icrc1::account::Account;
+use anyhow::{Result, anyhow};
 use tracing::info;
 
-use crate::{cli::BalanceArgs, clients::LEDGER_CANISTER};
+use crate::{cli::BalanceArgs, ledger::fetch_balance};
 
 use super::CommandContext;
 
@@ -13,24 +11,7 @@ pub async fn handle(_args: BalanceArgs, ctx: &CommandContext) -> Result<()> {
         .get_principal()
         .map_err(|e| anyhow!("Failed to derive principal for current identity: {e}"))?;
 
-    let ledger_id =
-        Principal::from_text(LEDGER_CANISTER).context("Failed to parse ledger canister id")?;
-
-    let account = Account {
-        owner: principal,
-        subaccount: None,
-    };
-
-    let payload = candid::encode_one(account)?;
-    let response = agent
-        .query(&ledger_id, "icrc1_balance_of")
-        .with_arg(payload)
-        .call()
-        .await
-        .context("Failed to query ledger balance")?;
-
-    let balance: u128 =
-        candid::decode_one(&response).context("Failed to decode balance response")?;
+    let balance = fetch_balance(&agent).await?;
     let kinic = balance as f64 / 100_000_000f64;
 
     info!(

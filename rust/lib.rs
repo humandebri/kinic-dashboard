@@ -4,6 +4,7 @@ pub mod cli;
 pub(crate) mod clients;
 mod commands;
 mod embedding;
+mod ledger;
 #[cfg(feature = "python-bindings")]
 mod python;
 
