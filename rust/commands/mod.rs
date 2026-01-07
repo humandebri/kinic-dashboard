@@ -10,6 +10,8 @@ pub mod insert_pdf;
 pub mod list;
 pub mod convert_pdf;
 pub mod search;
+pub mod search_raw;
+pub mod tagged_embeddings;
 pub mod update;
 pub mod balance;
 pub mod ask_ai;
@@ -27,6 +29,8 @@ pub async fn run_command(command: Command, ctx: CommandContext) -> Result<()> {
         Command::InsertRaw(args) => insert_raw::handle(args, &ctx).await,
         Command::InsertPdf(args) => insert_pdf::handle(args, &ctx).await,
         Command::Search(args) => search::handle(args, &ctx).await,
+        Command::SearchRaw(args) => search_raw::handle(args, &ctx).await,
+        Command::TaggedEmbeddings(args) => tagged_embeddings::handle(args, &ctx).await,
         Command::ConvertPdf(args) => convert_pdf::handle(args).await,
         Command::Config(args) => config::handle(args, &ctx).await,
         Command::Update(args) => update::handle(args, &ctx).await,

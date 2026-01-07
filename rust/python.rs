@@ -121,6 +121,28 @@ pub(crate) async fn search_memories(
     Ok(results)
 }
 
+pub(crate) async fn search_memories_raw(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    embedding: Vec<f32>,
+) -> Result<Vec<(f32, String)>> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    let mut results = client.search(embedding).await?;
+    results.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
+    Ok(results)
+}
+
+pub(crate) async fn tagged_embeddings(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    tag: String,
+) -> Result<Vec<Vec<f32>>> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    client.tagged_embeddings(tag).await
+}
+
 pub(crate) async fn ask_ai(
     use_mainnet: bool,
     identity: String,

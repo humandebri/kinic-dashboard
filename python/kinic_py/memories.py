@@ -60,6 +60,14 @@ class KinicMemories:
         """Search the specified memory canister."""
         return search_memories(self.identity, memory_id, query, ic=self.ic)
 
+    def search_raw(self, memory_id: str, embedding: Sequence[float]) -> ScoreResult:
+        """Search using a precomputed embedding."""
+        return search_raw(self.identity, memory_id, embedding, ic=self.ic)
+
+    def tagged_embeddings(self, memory_id: str, tag: str) -> List[List[float]]:
+        """Fetch all embeddings associated with a tag."""
+        return tagged_embeddings(self.identity, memory_id, tag, ic=self.ic)
+
     def ask_ai(
         self,
         memory_id: str,
@@ -194,6 +202,26 @@ def search_memories(
     ic: bool | None = None,
 ) -> ScoreResult:
     return native.search_memories(identity, memory_id, query, ic=ic)
+
+
+def search_raw(
+    identity: str,
+    memory_id: str,
+    embedding: Sequence[float],
+    *,
+    ic: bool | None = None,
+) -> ScoreResult:
+    return native.search_memories_raw(identity, memory_id, list(embedding), ic=ic)
+
+
+def tagged_embeddings(
+    identity: str,
+    memory_id: str,
+    tag: str,
+    *,
+    ic: bool | None = None,
+) -> List[List[float]]:
+    return native.tagged_embeddings(identity, memory_id, tag, ic=ic)
 
 
 def ask_ai(

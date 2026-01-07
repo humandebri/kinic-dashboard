@@ -51,6 +51,10 @@ pub enum Command {
     ConvertPdf(ConvertPdfArgs),
     #[command(about = "Search within a memory canister using embeddings")]
     Search(SearchArgs),
+    #[command(about = "Search within a memory canister using a precomputed embedding")]
+    SearchRaw(SearchRawArgs),
+    #[command(about = "Fetch embeddings for a tag from a memory canister")]
+    TaggedEmbeddings(TaggedEmbeddingsArgs),
     #[command(about = "Manage Kinic CLI configuration")]
     Config(ConfigArgs),
     #[command(about = "Update a memory canister instance")]
@@ -153,6 +157,36 @@ pub struct SearchArgs {
 
     #[arg(long, required = true, help = "Query text to embed and search")]
     pub query: String,
+}
+
+#[derive(Args, Debug)]
+pub struct SearchRawArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the memory canister to search"
+    )]
+    pub memory_id: String,
+
+    #[arg(
+        long,
+        required = true,
+        help = "Embedding as a JSON array of floats, e.g. [0.1, 0.2]"
+    )]
+    pub embedding: String,
+}
+
+#[derive(Args, Debug)]
+pub struct TaggedEmbeddingsArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the memory canister to query"
+    )]
+    pub memory_id: String,
+
+    #[arg(long, required = true, help = "Tag to fetch embeddings for")]
+    pub tag: String,
 }
 
 #[derive(Args, Debug)]
