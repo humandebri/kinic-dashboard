@@ -13,6 +13,8 @@ from pylate import indexes, models, rank, retrieve
 
 def retrieval_and_rerank(model: models.ColBERT, kinic: KinicMemories) -> None:
     memory_id = kinic.create("ColBERT demo", "Created from colbert.py example")
+    # Reset the memory canister to match ColBERT's token embedding dimension.
+    kinic.reset(memory_id, 128)
 
     documents_ids = ["doc-1", "doc-2", "doc-3"]
     documents = [
