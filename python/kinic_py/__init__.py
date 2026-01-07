@@ -20,6 +20,7 @@ from .memories import (
     ask_ai,
     get_balance,
     update_instance,
+    reset_memory,
     add_user,
 )
 
@@ -40,6 +41,7 @@ __all__ = [
     "ask_ai",
     "get_balance",
     "update_instance",
+    "reset_memory",
     "add_user",
     "native",
     "__version__",

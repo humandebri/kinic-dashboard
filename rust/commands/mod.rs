@@ -13,6 +13,7 @@ pub mod search;
 pub mod search_raw;
 pub mod tagged_embeddings;
 pub mod update;
+pub mod reset;
 pub mod balance;
 pub mod ask_ai;
 
@@ -34,6 +35,7 @@ pub async fn run_command(command: Command, ctx: CommandContext) -> Result<()> {
         Command::ConvertPdf(args) => convert_pdf::handle(args).await,
         Command::Config(args) => config::handle(args, &ctx).await,
         Command::Update(args) => update::handle(args, &ctx).await,
+        Command::Reset(args) => reset::handle(args, &ctx).await,
         Command::Balance(args) => balance::handle(args, &ctx).await,
         Command::AskAi(args) => ask_ai::handle(args, &ctx).await,
     }

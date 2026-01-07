@@ -63,6 +63,7 @@ fn _lib(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ask_ai, m)?)?;
     m.add_function(wrap_pyfunction!(get_balance, m)?)?;
     m.add_function(wrap_pyfunction!(update_instance, m)?)?;
+    m.add_function(wrap_pyfunction!(reset_memory, m)?)?;
     m.add_function(wrap_pyfunction!(add_user, m)?)?;
     Ok(())
 }
@@ -265,6 +266,24 @@ fn update_instance(identity: &str, memory_id: &str, ic: Option<bool>) -> PyResul
         ic,
         identity.to_string(),
         memory_id.to_string(),
+    ))
+}
+
+#[cfg(feature = "python-bindings")]
+#[pyfunction]
+#[pyo3(signature = (identity, memory_id, dim, ic=None))]
+fn reset_memory(
+    identity: &str,
+    memory_id: &str,
+    dim: usize,
+    ic: Option<bool>,
+) -> PyResult<()> {
+    let ic = ic.unwrap_or(false);
+    block_on_py(python::reset_memory(
+        ic,
+        identity.to_string(),
+        memory_id.to_string(),
+        dim,
     ))
 }
 

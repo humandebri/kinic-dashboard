@@ -226,6 +226,16 @@ pub(crate) async fn update_instance(
         .context("Failed to update instance via launcher canister")
 }
 
+pub(crate) async fn reset_memory(
+    use_mainnet: bool,
+    identity: String,
+    memory_id: String,
+    dim: usize,
+) -> Result<()> {
+    let client = build_memory_client(use_mainnet, identity, memory_id).await?;
+    client.reset(dim).await
+}
+
 async fn build_memory_client(
     use_mainnet: bool,
     identity: String,

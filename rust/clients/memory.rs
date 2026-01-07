@@ -68,6 +68,20 @@ impl MemoryClient {
         Ok(())
     }
 
+    pub async fn reset(&self, dim: usize) -> Result<()> {
+        let payload = encode_reset_args(dim)?;
+        let response = self
+            .agent
+            .update(&self.canister_id, "reset")
+            .with_arg(payload)
+            .call_and_wait()
+            .await
+            .context("Failed to call reset on memory canister")?;
+
+        Decode!(&response, ()).context("Failed to decode reset response")?;
+        Ok(())
+    }
+
     pub fn canister_id(&self) -> &Principal {
         &self.canister_id
     }
@@ -98,4 +112,7 @@ fn encode_update_instance_args(instance_pid_str: String) -> Result<Vec<u8>> {
 }
 fn encode_tagged_embeddings_args(tag: String) -> Result<Vec<u8>> {
     Ok(candid::encode_one(tag)?)
+}
+fn encode_reset_args(dim: usize) -> Result<Vec<u8>> {
+    Ok(candid::encode_one(dim)?)
 }

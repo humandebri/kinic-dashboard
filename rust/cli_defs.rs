@@ -59,6 +59,8 @@ pub enum Command {
     Config(ConfigArgs),
     #[command(about = "Update a memory canister instance")]
     Update(UpdateArgs),
+    #[command(about = "Reset a memory canister and set embedding dimension")]
+    Reset(ResetArgs),
     #[command(about = "Check KINIC token balance for the current identity")]
     Balance(BalanceArgs),
     #[command(about = "Ask Kinic AI using memory search results (LLM placeholder)")]
@@ -215,6 +217,19 @@ pub struct UpdateArgs {
         help = "Principal of the target memory canister to update"
     )]
     pub memory_id: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ResetArgs {
+    #[arg(
+        long,
+        required = true,
+        help = "Principal of the target memory canister to reset"
+    )]
+    pub memory_id: String,
+
+    #[arg(long, required = true, help = "Embedding dimension to set after reset")]
+    pub dim: usize,
 }
 
 #[derive(Args, Debug)]
