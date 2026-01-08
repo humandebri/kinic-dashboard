@@ -29,10 +29,24 @@ pub struct GlobalOpts {
 
     #[arg(
         long,
-        required = true,
+        conflicts_with = "ii",
+        required_unless_present = "ii",
         help = "Dfx identity name used to load credentials from the system keyring"
     )]
-    pub identity: String,
+    pub identity: Option<String>,
+
+    #[arg(
+        long,
+        help = "Use Internet Identity login (delegation saved to identity.json)"
+    )]
+    pub ii: bool,
+
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Path to identity.json (default: ~/.config/kinic/identity.json)"
+    )]
+    pub identity_path: Option<PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -65,6 +79,8 @@ pub enum Command {
     Balance(BalanceArgs),
     #[command(about = "Ask Kinic AI using memory search results (LLM placeholder)")]
     AskAi(AskAiArgs),
+    #[command(about = "Login via Internet Identity and store a delegation")]
+    Login(LoginArgs),
 }
 
 #[derive(Args, Debug)]
@@ -135,7 +151,12 @@ pub struct InsertPdfArgs {
     )]
     pub memory_id: String,
 
-    #[arg(long, value_name = "PATH", required = true, help = "PDF file to convert to markdown and insert")]
+    #[arg(
+        long,
+        value_name = "PATH",
+        required = true,
+        help = "PDF file to convert to markdown and insert"
+    )]
     pub file_path: PathBuf,
 
     #[arg(long, required = true, help = "Tag metadata stored alongside the text")]
@@ -144,7 +165,12 @@ pub struct InsertPdfArgs {
 
 #[derive(Args, Debug)]
 pub struct ConvertPdfArgs {
-    #[arg(long, value_name = "PATH", required = true, help = "PDF file to convert to markdown")]
+    #[arg(
+        long,
+        value_name = "PATH",
+        required = true,
+        help = "PDF file to convert to markdown"
+    )]
     pub file_path: PathBuf,
 }
 
@@ -255,3 +281,6 @@ pub struct AskAiArgs {
     )]
     pub top_k: usize,
 }
+
+#[derive(Args, Debug)]
+pub struct LoginArgs {}

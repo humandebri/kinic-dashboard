@@ -1,3 +1,6 @@
+// Where: Search raw embedding command handler.
+// What: Searches a memory canister using a precomputed embedding.
+// Why: Supports clients that already have embeddings.
 use anyhow::{Context, Result, bail};
 use ic_agent::export::Principal;
 use tracing::info;

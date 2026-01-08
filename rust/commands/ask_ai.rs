@@ -29,8 +29,8 @@ pub struct AskAiResult {
 }
 
 pub async fn handle(args: AskAiArgs, ctx: &CommandContext) -> Result<()> {
-    let memory =
-        Principal::from_text(&args.memory_id).context("Failed to parse canister id for ask-ai command")?;
+    let memory = Principal::from_text(&args.memory_id)
+        .context("Failed to parse canister id for ask-ai command")?;
     let result = ask_ai_flow(&ctx.agent_factory, &memory, &args.query, args.top_k, "en").await?;
 
     info!(
@@ -63,7 +63,7 @@ pub async fn ask_ai_flow(
     language: &str,
 ) -> Result<AskAiResult> {
     let agent = agent_factory.build().await?;
-    let client = MemoryClient::new(agent, memory_id.clone());
+    let client = MemoryClient::new(agent, *memory_id);
 
     let embedding = fetch_embedding(query).await?;
     let mut results = client.search(embedding).await?;
@@ -109,10 +109,11 @@ async fn call_llm(prompt: &str) -> Result<String> {
             if payload.is_empty() {
                 continue;
             }
-            if let Ok(chunk) = serde_json::from_str::<ChatChunk>(payload) {
-                if let Some(content) = chunk.content {
-                    acc.push_str(&content);
-                }
+            if let Ok(ChatChunk {
+                content: Some(content),
+            }) = serde_json::from_str::<ChatChunk>(payload)
+            {
+                acc.push_str(&content);
             }
         }
     }

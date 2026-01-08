@@ -3,9 +3,7 @@ use ic_agent::export::Principal;
 use tracing::info;
 
 use crate::{
-    cli::InsertPdfArgs,
-    clients::memory::MemoryClient,
-    commands::convert_pdf::pdf_to_markdown,
+    cli::InsertPdfArgs, clients::memory::MemoryClient, commands::convert_pdf::pdf_to_markdown,
     embedding::late_chunking,
 };
 

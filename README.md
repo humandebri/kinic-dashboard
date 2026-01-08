@@ -90,11 +90,24 @@ dfx canister --ic call 73mez-iiaaa-aaaaq-aaasq-cai icrc1_balance_of '(record {ow
 
 # Example: (100000000 : nat) == 1 KINIC
 ```
+
+### 3. Internet Identity flow (--ii, CLI only)
+
+If you prefer browser login instead of a keychain-backed dfx identity:
+
+```bash
+cargo run -- --ii login
+cargo run -- --ii list
+```
+
+Delegations are stored at `~/.config/kinic/identity.json` (default TTL: 6 hours).
+The login flow uses a local callback on port `8620`.
+
 **DM https://x.com/wyatt_benno for KINIC prod tokens** with your principal ID.
 
 Or purchase them from MEXC or swap at https://app.icpswap.com/ . 
 
-### 3. Deploy and Use Memory
+### 4. Deploy and Use Memory
 
 ```python
 from kinic_py import KinicMemories

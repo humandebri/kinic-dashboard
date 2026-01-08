@@ -40,7 +40,7 @@ pub async fn fetch_embedding(text: &str) -> Result<Vec<f32>> {
         .json::<EmbeddingResponse>()
         .await
         .context("Failed to decode embedding response")?;
-    Ok(payload.embedding.into_iter().map(|v| v as f32).collect())
+    Ok(payload.embedding)
 }
 
 async fn ensure_success(response: reqwest::Response) -> Result<reqwest::Response> {

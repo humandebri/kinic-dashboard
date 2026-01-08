@@ -40,8 +40,7 @@ fn extract_with_pdftotext(path: &Path) -> Result<String> {
         ));
     }
 
-    String::from_utf8(output.stdout)
-        .with_context(|| "pdftotext output was not valid UTF-8")
+    String::from_utf8(output.stdout).with_context(|| "pdftotext output was not valid UTF-8")
 }
 
 fn extract_with_pdf_extract_quiet(path: &Path) -> Result<String> {

@@ -1,3 +1,6 @@
+// Where: Tagged embeddings command handler.
+// What: Fetches embeddings for a tag from a memory canister.
+// Why: Enables debugging and analysis of stored embeddings.
 use anyhow::{Context, Result};
 use ic_agent::export::Principal;
 use serde_json::to_string;

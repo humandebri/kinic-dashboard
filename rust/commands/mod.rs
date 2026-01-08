@@ -2,24 +2,26 @@ use anyhow::Result;
 
 use crate::{agent::AgentFactory, cli::Command};
 
-pub mod create;
+pub mod ask_ai;
+pub mod balance;
 pub mod config;
+pub mod convert_pdf;
+pub mod create;
 pub mod insert;
 pub mod insert_raw;
 pub mod insert_pdf;
 pub mod list;
-pub mod convert_pdf;
+pub mod ii_login;
+pub mod reset;
 pub mod search;
 pub mod search_raw;
 pub mod tagged_embeddings;
 pub mod update;
-pub mod reset;
-pub mod balance;
-pub mod ask_ai;
 
 #[derive(Clone)]
 pub struct CommandContext {
     pub agent_factory: AgentFactory,
+    pub identity_path: Option<std::path::PathBuf>,
 }
 
 pub async fn run_command(command: Command, ctx: CommandContext) -> Result<()> {
@@ -38,5 +40,6 @@ pub async fn run_command(command: Command, ctx: CommandContext) -> Result<()> {
         Command::Reset(args) => reset::handle(args, &ctx).await,
         Command::Balance(args) => balance::handle(args, &ctx).await,
         Command::AskAi(args) => ask_ai::handle(args, &ctx).await,
+        Command::Login(args) => ii_login::handle(args, &ctx).await,
     }
 }

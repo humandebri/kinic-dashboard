@@ -1,3 +1,6 @@
+// Where: Reset memory command handler.
+// What: Resets a memory canister to a specified embedding dimension.
+// Why: Supports reinitializing memory canisters safely.
 use anyhow::{Context, Result};
 use ic_agent::export::Principal;
 use tracing::info;

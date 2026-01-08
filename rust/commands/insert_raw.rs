@@ -1,3 +1,6 @@
+// Where: Insert raw embedding command handler.
+// What: Inserts a precomputed embedding into a memory canister.
+// Why: Supports clients that already have embeddings.
 use anyhow::{Context, Result, bail};
 use ic_agent::export::Principal;
 use serde_json::json;

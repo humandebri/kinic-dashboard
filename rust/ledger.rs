@@ -1,3 +1,6 @@
+// Where: Ledger helpers.
+// What: Fetches ICRC-1 balances for the current identity.
+// Why: Keeps ledger calls separate from command handlers.
 use anyhow::{Context, Result, anyhow};
 use ic_agent::export::Principal;
 use icrc_ledger_types::icrc1::account::Account;

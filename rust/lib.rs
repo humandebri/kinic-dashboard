@@ -5,6 +5,7 @@ pub(crate) mod clients;
 mod commands;
 mod embedding;
 mod ledger;
+pub(crate) mod identity_store;
 #[cfg(feature = "python-bindings")]
 mod python;
 
@@ -42,8 +43,36 @@ pub async fn run() -> Result<()> {
 
     fmt().with_max_level(max).without_time().try_init().ok();
 
+    let needs_identity_path = matches!(cli.command, cli::Command::Login(_)) || cli.global.ii;
+    let identity_path = if needs_identity_path {
+        Some(match cli.global.identity_path.clone() {
+            Some(path) => path,
+            None => identity_store::default_identity_path()?,
+        })
+    } else {
+        None
+    };
+
+    let agent_factory = if matches!(cli.command, cli::Command::Login(_)) {
+        AgentFactory::new(cli.global.ic, String::new())
+    } else if cli.global.ii {
+        let path = identity_path
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Identity path is missing"))?;
+        let delegated = identity_store::load_delegated_identity(&path)?;
+        AgentFactory::new_with_identity(cli.global.ic, delegated)
+    } else {
+        let identity_suffix = cli
+            .global
+            .identity
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("--identity is required unless --ii is set"))?;
+        AgentFactory::new(cli.global.ic, identity_suffix)
+    };
+
     let context = CommandContext {
-        agent_factory: AgentFactory::new(cli.global.ic, cli.global.identity.clone()),
+        agent_factory,
+        identity_path,
     };
 
     run_command(cli.command, context).await
