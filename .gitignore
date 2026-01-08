@@ -30,3 +30,6 @@ pylate-index/
 .DS_Store
 .idea/
 .vscode/
+
+web/.next/
+web/node_modules/
