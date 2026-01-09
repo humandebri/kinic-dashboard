@@ -4,14 +4,17 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Principal } from '@dfinity/principal'
 
 import AppShell from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { MultiSelectComboboxInput } from '@/components/ui/multi-select-combobox-input'
 import SearchHistory from '@/components/search/search-history'
 import SearchResults from '@/components/search/search-results'
 import { useIdentityState } from '@/components/providers/identity-provider'
+import { useMemories } from '@/hooks/use-memories'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 import { createMemoryActor } from '@/lib/memory'
 import { fetchEmbedding } from '@/lib/embedding'
@@ -19,12 +22,16 @@ import { extractRelatedTerms, parseResultText, type ParsedResult } from '@/lib/s
 
 const HISTORY_KEY = 'kinic.search.history'
 const SAVED_KEY = 'kinic.search.saved'
+const TARGET_KEY = 'kinic.search.targets'
 
 type SortMode = 'score_desc' | 'score_asc' | 'tag'
+
+const normalizeMemoryId = (value: string) => value.trim()
 
 const SearchPage = () => {
   const identityState = useIdentityState()
   const { selectedMemoryId } = useSelectedMemory()
+  const { memories } = useMemories(identityState.identity, identityState.isReady)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ParsedResult[]>([])
   const [status, setStatus] = useState<string | null>(null)
@@ -33,8 +40,11 @@ const SearchPage = () => {
   const [sortMode, setSortMode] = useState<SortMode>('score_desc')
   const [history, setHistory] = useState<string[]>([])
   const [savedQueries, setSavedQueries] = useState<string[]>([])
+  const [targetInputs, setTargetInputs] = useState<string[]>([''])
+  const [targetMemoryIds, setTargetMemoryIds] = useState<string[]>([])
+  const [targetStatus, setTargetStatus] = useState<string | null>(null)
 
-  const canSearch = Boolean(identityState.isAuthenticated && selectedMemoryId && query.trim())
+  const canSearch = Boolean(identityState.isAuthenticated && targetMemoryIds.length && query.trim())
   const queryTokens = useMemo(() => {
     return query
       .trim()
@@ -43,31 +53,106 @@ const SearchPage = () => {
       .filter((token) => token.length >= 2)
   }, [query])
 
+  const validateTargets = (values: string[]) => {
+    const trimmed = values.map(normalizeMemoryId).filter(Boolean)
+    const unique = Array.from(new Set(trimmed))
+    const valid: string[] = []
+    let invalidCount = 0
+
+    for (const value of unique) {
+      try {
+        Principal.fromText(value)
+        valid.push(value)
+      } catch {
+        invalidCount += 1
+      }
+    }
+
+    return { valid, invalidCount }
+  }
+
+  const syncTargets = (values: string[]) => {
+    setTargetInputs(values)
+    const { valid, invalidCount } = validateTargets(values)
+    const limited = valid.slice(0, 10)
+    setTargetMemoryIds(limited)
+    localStorage.setItem(TARGET_KEY, JSON.stringify(limited))
+    if (invalidCount > 0) {
+      setTargetStatus('Invalid canister id.')
+      return
+    }
+    if (valid.length > 10) {
+      setTargetStatus('Only the first 10 canisters are used.')
+      return
+    }
+    setTargetStatus(null)
+  }
+
+  const handleTargetChange = (index: number, value: string) => {
+    const nextInputs = [...targetInputs]
+    nextInputs[index] = value
+    syncTargets(nextInputs)
+  }
+
+  const handleTargetSelect = (index: number, values: string[]) => {
+    const nextValue = values.length > 0 ? values[values.length - 1] : ''
+    handleTargetChange(index, nextValue)
+  }
+
+  const addTargetInput = () => {
+    syncTargets([...targetInputs, ''])
+  }
+
+  const removeTargetInput = (index: number) => {
+    const nextInputs = targetInputs.filter((_, current) => current !== index)
+    syncTargets(nextInputs.length ? nextInputs : [''])
+  }
+
   const handleSearch = async () => {
-    if (!identityState.identity || !selectedMemoryId) return
+    if (!identityState.identity || !targetMemoryIds.length) return
 
     setIsSearching(true)
     setStatus(null)
+    setTargetStatus(null)
     setResults([])
 
     try {
       const trimmedQuery = query.trim()
       const embedding = await fetchEmbedding(trimmedQuery)
-      const actor = await createMemoryActor(identityState.identity, selectedMemoryId)
-      const rawResults = await actor.search(embedding)
-      const sorted = [...rawResults].sort((a, b) => b[0] - a[0])
-      const formatted = sorted.map((item) => {
-        const parsed = parseResultText(item[1])
-        return {
-          score: item[0],
-          rawText: item[1],
-          sentence: parsed.sentence,
-          tag: parsed.tag
-        }
-      })
-      setResults(formatted)
-      if (!formatted.length) {
+      const settled = await Promise.allSettled(
+        targetMemoryIds.map(async (memoryId) => {
+          const actor = await createMemoryActor(identityState.identity, memoryId)
+          const rawResults = await actor.search(embedding)
+          return { memoryId, rawResults }
+        })
+      )
+
+      const errors = settled.filter((result) => result.status === 'rejected')
+      const successes = settled
+        .filter((result): result is PromiseFulfilledResult<{ memoryId: string; rawResults: [number, string][] }> => {
+          return result.status === 'fulfilled'
+        })
+        .flatMap((result) => {
+          const { memoryId, rawResults } = result.value
+          return rawResults.map((item) => {
+            const parsed = parseResultText(item[1])
+            return {
+              score: item[0],
+              rawText: item[1],
+              sentence: parsed.sentence,
+              tag: parsed.tag,
+              memoryId
+            }
+          })
+        })
+
+      const sorted = [...successes].sort((a, b) => b.score - a.score)
+      setResults(sorted)
+      if (!sorted.length) {
         setStatus('No results found.')
+      }
+      if (errors.length) {
+        setStatus(`Failed on ${errors.length} canister${errors.length === 1 ? '' : 's'}.`)
       }
 
       if (trimmedQuery) {
@@ -86,6 +171,7 @@ const SearchPage = () => {
   useEffect(() => {
     const storedHistory = localStorage.getItem(HISTORY_KEY)
     const storedSaved = localStorage.getItem(SAVED_KEY)
+    const storedTargets = localStorage.getItem(TARGET_KEY)
     if (storedHistory) {
       try {
         const parsed = JSON.parse(storedHistory)
@@ -106,7 +192,24 @@ const SearchPage = () => {
         // Ignore parse errors.
       }
     }
+    if (storedTargets) {
+      try {
+        const parsed = JSON.parse(storedTargets)
+        if (Array.isArray(parsed)) {
+          const parsedTargets = parsed.filter((item): item is string => typeof item === 'string')
+          syncTargets(parsedTargets.length ? parsedTargets : [''])
+        }
+      } catch {
+        // Ignore parse errors.
+      }
+    }
   }, [])
+
+  useEffect(() => {
+    if (!selectedMemoryId) return
+    if (targetInputs.some((value) => normalizeMemoryId(value))) return
+    syncTargets([selectedMemoryId])
+  }, [selectedMemoryId, targetInputs])
 
   const tags = useMemo(() => {
     const tagSet = new Set(results.map((result) => result.tag).filter(Boolean) as string[])
@@ -155,6 +258,17 @@ const SearchPage = () => {
     localStorage.setItem(SAVED_KEY, JSON.stringify(nextSaved))
   }
 
+  const memoryOptions = useMemo(() => {
+    const options = memories
+      .map((memory) => memory.principalText)
+      .filter((value): value is string => Boolean(value))
+    if (selectedMemoryId) {
+      options.unshift(selectedMemoryId)
+    }
+    const merged = [...options, ...targetMemoryIds]
+    return Array.from(new Set(merged))
+  }, [memories, selectedMemoryId, targetMemoryIds])
+
   return (
     <AppShell pageTitle='Search' identityState={identityState}>
       <div className='grid gap-6'>
@@ -167,11 +281,38 @@ const SearchPage = () => {
           </CardHeader>
           <CardContent className='space-y-4'>
             <div className='flex flex-col gap-2'>
-              <label className='text-sm text-zinc-600'>Memory</label>
-              <div className='rounded-2xl border border-zinc-200/70 bg-white/70 px-3 py-2 text-sm'>
-                <div className='flex flex-wrap items-center gap-2'>
-                  <span className='text-muted-foreground'>Selected</span>
-                  <span className='font-mono text-sm text-zinc-900'>{selectedMemoryId ?? '--'}</span>
+              <label className='text-sm text-zinc-600'>Targets</label>
+              <div className='text-sm'>
+                <span className='text-xs text-zinc-500'>Add canister IDs to search.</span>
+                <div className='mt-3 flex flex-col gap-3'>
+                  <div className='flex flex-col gap-2'>
+                    {targetInputs.map((value, index) => (
+                      <div key={`target-${index}`} className='flex items-center gap-2'>
+                        <MultiSelectComboboxInput
+                          values={value ? [value] : []}
+                          options={memoryOptions}
+                          placeholder='Add canister id'
+                          onChange={(values) => handleTargetSelect(index, values)}
+                          showSelections={false}
+                        />
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          className='rounded-full'
+                          onClick={() => removeTargetInput(index)}
+                          disabled={targetInputs.length === 1}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <Button variant='outline' size='sm' className='rounded-full' onClick={addTargetInput}>
+                      + Add canister
+                    </Button>
+                    {targetStatus ? <span className='text-muted-foreground text-xs'>{targetStatus}</span> : null}
+                  </div>
                 </div>
               </div>
             </div>

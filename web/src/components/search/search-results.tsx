@@ -96,11 +96,13 @@ const SearchResults = ({
         const snippet = buildSnippet(result.sentence, queryTokens)
         return (
           <div
-            key={`${result.score}-${index}`}
+            key={`${result.memoryId}-${result.score}-${index}`}
             className='rounded-2xl border border-zinc-200/70 bg-white/70 px-3 py-2 text-sm'
           >
             <div className='text-muted-foreground text-xs'>Score</div>
             <div className='font-mono text-sm text-zinc-900'>{result.score.toFixed(4)}</div>
+            <div className='mt-2 text-muted-foreground text-xs'>Memory</div>
+            <div className='font-mono text-xs text-zinc-700'>{result.memoryId}</div>
             <div className='mt-2 flex items-center gap-2 text-xs text-zinc-500'>
               <span>Tag</span>
               <span className='rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700'>

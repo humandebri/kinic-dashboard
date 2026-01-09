@@ -6,6 +6,7 @@ export type ParsedResult = {
   rawText: string
   sentence: string
   tag?: string
+  memoryId: string
 }
 
 const SNIPPET_LENGTH = 240
