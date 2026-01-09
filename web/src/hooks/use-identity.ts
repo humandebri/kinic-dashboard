@@ -9,6 +9,19 @@ import type { Identity } from '@dfinity/agent'
 
 import { DERIVATION_ORIGIN, IDENTITY_PROVIDER_URL, II_SESSION_TTL_NS } from '@/lib/ic-config'
 
+const SESSION_TTL_KEY = 'kinic.ii-session-ttl-ns'
+
+const loadSessionTtl = () => {
+  const stored = localStorage.getItem(SESSION_TTL_KEY)
+  if (!stored) return II_SESSION_TTL_NS
+  if (!/^\d+$/.test(stored)) return II_SESSION_TTL_NS
+  try {
+    return BigInt(stored)
+  } catch {
+    return II_SESSION_TTL_NS
+  }
+}
+
 export type IdentityState = {
   isReady: boolean
   isAuthenticated: boolean
@@ -60,7 +73,7 @@ export const useIdentity = (): IdentityState => {
       client.login({
         identityProvider: IDENTITY_PROVIDER_URL,
         derivationOrigin: DERIVATION_ORIGIN,
-        maxTimeToLive: II_SESSION_TTL_NS,
+        maxTimeToLive: loadSessionTtl(),
         onSuccess: () => resolve(),
         onError: (error) => reject(error)
       })

@@ -229,8 +229,12 @@ const SearchPage = () => {
 
   useEffect(() => {
     if (!selectedMemoryId) return
-    if (targetInputs.some((value) => normalizeMemoryId(value))) return
-    syncTargets([selectedMemoryId])
+    const normalizedSelected = normalizeMemoryId(selectedMemoryId)
+    if (!normalizedSelected) return
+    const current = targetInputs.map((value) => normalizeMemoryId(value)).filter(Boolean)
+    if (current.includes(normalizedSelected)) return
+    const next = [normalizedSelected, ...current.filter((value) => value !== normalizedSelected)]
+    syncTargets(next)
   }, [selectedMemoryId, targetInputs])
 
   const tags = useMemo(() => {

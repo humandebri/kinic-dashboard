@@ -11,11 +11,27 @@ import AppShell from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { useIdentityState } from '@/components/providers/identity-provider'
 import { useMemories } from '@/hooks/use-memories'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
+import { II_SESSION_TTL_NS } from '@/lib/ic-config'
 
 const CUSTOM_CANISTERS_KEY = 'kinic.custom-canisters'
+const SESSION_TTL_KEY = 'kinic.ii-session-ttl-ns'
+const SESSION_TTL_OPTIONS = [
+  { label: '15 minutes', value: '900000000000' },
+  { label: '1 hour', value: '3600000000000' },
+  { label: '12 hours', value: '43200000000000' },
+  { label: '1 day', value: '86400000000000' },
+  { label: '7 days', value: '604800000000000' }
+]
 
 const SettingsPage = () => {
   const identityState = useIdentityState()
@@ -24,6 +40,7 @@ const SettingsPage = () => {
   const [customCanisters, setCustomCanisters] = useState<string[]>([])
   const [newCanister, setNewCanister] = useState('')
   const [customStatus, setCustomStatus] = useState<string | null>(null)
+  const [sessionTtl, setSessionTtl] = useState(II_SESSION_TTL_NS.toString())
 
   useEffect(() => {
     const stored = localStorage.getItem(CUSTOM_CANISTERS_KEY)
@@ -35,6 +52,14 @@ const SettingsPage = () => {
       }
     } catch {
       // Ignore invalid stored data.
+    }
+  }, [])
+
+  useEffect(() => {
+    const stored = localStorage.getItem(SESSION_TTL_KEY)
+    if (!stored) return
+    if (/^\d+$/.test(stored)) {
+      setSessionTtl(stored)
     }
   }, [])
 
@@ -76,6 +101,11 @@ const SettingsPage = () => {
     persistCustomCanisters(next)
   }
 
+  const handleSessionTtlChange = (value: string) => {
+    setSessionTtl(value)
+    localStorage.setItem(SESSION_TTL_KEY, value)
+  }
+
   const handleDefaultChange = (value: string) => {
     setDefaultMemoryId(value || null)
   }
@@ -110,6 +140,30 @@ const SettingsPage = () => {
                 <span className='text-muted-foreground text-xs'>Loading memories…</span>
               ) : null}
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className='flex flex-col items-start gap-2'>
+            <span className='text-lg font-semibold'>Session TTL</span>
+            <span className='text-muted-foreground text-sm'>Controls Internet Identity delegation lifetime.</span>
+          </CardHeader>
+          <CardContent className='space-y-2'>
+            <label className='text-sm text-zinc-600'>Session duration</label>
+            <Select value={sessionTtl} onValueChange={handleSessionTtlChange}>
+              <SelectTrigger className='w-[16rem]'>
+                <SelectValue placeholder='Select TTL' />
+              </SelectTrigger>
+              <SelectContent>
+                {SESSION_TTL_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className='text-muted-foreground text-xs'>
+              Applies next time you sign in.
+            </span>
           </CardContent>
         </Card>
         <Card>

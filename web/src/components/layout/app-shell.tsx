@@ -368,7 +368,7 @@ const AppShell = ({
                       onValueChange={(value) => setSelectedMemoryId(value || null)}
                       disabled={!memoryOptions.length}
                     >
-                      <SelectTrigger className='h-7 w-30 border-none bg-transparent px-0 shadow-none focus:ring-0'>
+                      <SelectTrigger className='h-7 w-[320px] border-none bg-transparent px-0 shadow-none focus:ring-0'>
                         <SelectValue placeholder={memories.isLoading ? 'Loading…' : 'Select'} />
                       </SelectTrigger>
                       <SelectContent>

@@ -4,7 +4,7 @@
 'use client'
 
 import { ChevronDownIcon } from 'lucide-react'
-import { type KeyboardEvent, useId, useMemo, useState } from 'react'
+import { type KeyboardEvent, useEffect, useId, useMemo, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -34,6 +34,16 @@ export const MultiSelectComboboxInput = ({
   const [open, setOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const listboxId = useId()
+
+  useEffect(() => {
+    if (values.length === 1 && values[0] !== inputValue) {
+      setInputValue(values[0])
+      return
+    }
+    if (values.length === 0 && !open && inputValue) {
+      setInputValue('')
+    }
+  }, [values, inputValue, open])
 
   const filteredOptions = useMemo(() => {
     const query = inputValue.trim().toLowerCase()
