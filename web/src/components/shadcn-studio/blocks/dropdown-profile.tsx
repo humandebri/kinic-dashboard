@@ -3,13 +3,14 @@
 // Why: Matches the reference shell navigation pattern.
 'use client'
 
-import type { ReactNode } from 'react'
+import { type ReactNode, type MouseEvent, useEffect, useState } from 'react'
 
 import {
   UserIcon,
   SettingsIcon,
   CreditCardIcon,
-  LogOutIcon
+  LogOutIcon,
+  CopyIcon
 } from 'lucide-react'
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -30,6 +31,7 @@ type Props = {
   align?: 'start' | 'center' | 'end'
   name?: string
   subtitle?: string
+  principalId?: string
   statusLabel?: string
   onDisconnect?: () => void
 }
@@ -40,10 +42,28 @@ const ProfileDropdown = ({
   align = 'end',
   name = 'Guest',
   subtitle = 'Not connected',
+  principalId,
   statusLabel = 'offline',
   onDisconnect
 }: Props) => {
   const mounted = useMounted()
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!principalId) return
+    void navigator.clipboard.writeText(principalId)
+    setCopied(true)
+  }
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => {
+      setCopied(false)
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [copied])
 
   if (!mounted) {
     // Skip Radix dropdown markup on SSR to prevent hydration ID mismatches.
@@ -64,7 +84,20 @@ const ProfileDropdown = ({
           </div>
           <div className='flex flex-1 flex-col items-start'>
             <span className='text-foreground text-lg font-semibold'>{name}</span>
-            <span className='text-muted-foreground text-base'>{subtitle}</span>
+            <div className='flex items-center gap-2'>
+              <span className='text-muted-foreground text-base'>{subtitle}</span>
+              {principalId ? (
+                <button
+                  type='button'
+                  onClick={handleCopy}
+                  className='rounded-full p-1 text-zinc-400 transition hover:text-zinc-700'
+                  aria-label='Copy principal ID'
+                >
+                  <CopyIcon className='size-4' />
+                </button>
+              ) : null}
+              {copied ? <span className='text-xs text-zinc-500'>Copied</span> : null}
+            </div>
             <span className='text-muted-foreground text-xs'>Status: {statusLabel}</span>
           </div>
         </DropdownMenuLabel>
@@ -72,15 +105,17 @@ const ProfileDropdown = ({
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuItem className='px-4 py-2.5 text-base'>
+          <DropdownMenuItem className='px-4 py-2.5 text-base' disabled>
             <UserIcon className='text-foreground size-5' />
             <span>My account</span>
           </DropdownMenuItem>
-          <DropdownMenuItem className='px-4 py-2.5 text-base'>
-            <SettingsIcon className='text-foreground size-5' />
-            <span>Settings</span>
+          <DropdownMenuItem className='px-4 py-2.5 text-base' asChild>
+            <a href='/settings' className='flex items-center gap-2'>
+              <SettingsIcon className='text-foreground size-5' />
+              <span>Settings</span>
+            </a>
           </DropdownMenuItem>
-          <DropdownMenuItem className='px-4 py-2.5 text-base'>
+          <DropdownMenuItem className='px-4 py-2.5 text-base' disabled>
             <CreditCardIcon className='text-foreground size-5' />
             <span>Billing</span>
           </DropdownMenuItem>

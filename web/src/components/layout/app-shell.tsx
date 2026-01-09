@@ -422,6 +422,7 @@ const AppShell = ({
                 <ProfileDropdown
                   name={identityState.isAuthenticated ? 'Connected' : 'Guest'}
                   subtitle={shortenPrincipal(identityState.principalText)}
+                  principalId={identityState.principalText ?? undefined}
                   statusLabel={identityState.isAuthenticated ? 'online' : 'offline'}
                   onDisconnect={identityState.logout}
                   trigger={

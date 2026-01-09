@@ -3,7 +3,7 @@
 // なぜ: Web UIで検索体験を完結させるため。
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Principal } from '@dfinity/principal'
 
 import AppShell from '@/components/layout/app-shell'
@@ -55,7 +55,7 @@ const SearchPage = () => {
       .filter((token) => token.length >= 2)
   }, [query])
 
-  const validateTargets = (values: string[]) => {
+  const validateTargets = useCallback((values: string[]) => {
     const trimmed = values.map(normalizeMemoryId).filter(Boolean)
     const unique = Array.from(new Set(trimmed))
     const valid: string[] = []
@@ -71,9 +71,9 @@ const SearchPage = () => {
     }
 
     return { valid, invalidCount }
-  }
+  }, [])
 
-  const syncTargets = (values: string[]) => {
+  const syncTargets = useCallback((values: string[]) => {
     setTargetInputs(values)
     const { valid, invalidCount } = validateTargets(values)
     const limited = valid.slice(0, 10)
@@ -88,7 +88,7 @@ const SearchPage = () => {
       return
     }
     setTargetStatus(null)
-  }
+  }, [validateTargets])
 
   const handleTargetChange = (index: number, value: string) => {
     const nextInputs = [...targetInputs]
@@ -111,7 +111,11 @@ const SearchPage = () => {
   }
 
   const handleSearch = async () => {
-    if (!identityState.identity) return
+    const identity = identityState.identity
+    if (!identity) {
+      setStatus('Connect identity to search.')
+      return
+    }
 
     const { valid, invalidCount } = validateTargets(targetInputs)
     if (invalidCount > 0) {
@@ -136,7 +140,7 @@ const SearchPage = () => {
       const embedding = await fetchEmbedding(trimmedQuery)
       const settled = await Promise.allSettled(
         targetIds.map(async (memoryId) => {
-          const actor = await createMemoryActor(identityState.identity, memoryId)
+          const actor = await createMemoryActor(identity, memoryId)
           const rawResults = await actor.search(embedding)
           return { memoryId, rawResults }
         })
@@ -225,7 +229,7 @@ const SearchPage = () => {
         // Ignore parse errors.
       }
     }
-  }, [])
+  }, [syncTargets])
 
   useEffect(() => {
     if (!selectedMemoryId) return
@@ -235,7 +239,7 @@ const SearchPage = () => {
     if (current.includes(normalizedSelected)) return
     const next = [normalizedSelected, ...current.filter((value) => value !== normalizedSelected)]
     syncTargets(next)
-  }, [selectedMemoryId, targetInputs])
+  }, [selectedMemoryId, targetInputs, syncTargets])
 
   const tags = useMemo(() => {
     const tagSet = new Set(results.map((result) => result.tag).filter(Boolean) as string[])
