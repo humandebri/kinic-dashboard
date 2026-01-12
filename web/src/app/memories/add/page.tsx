@@ -12,6 +12,7 @@ import AppShell from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { useBalance } from '@/components/providers/balance-provider'
 import { useIdentityState } from '@/components/providers/identity-provider'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 import { APPROVAL_TTL_NS, LAUNCHER_CANISTER_ID, LEDGER_CANISTER_ID } from '@/lib/ic-config'
@@ -36,6 +37,7 @@ const MIN_CREATE_BASE = 100_200_000n
 
 const AddMemoryPage = () => {
   const identityState = useIdentityState()
+  const balance = useBalance()
   const { setSelectedMemoryId } = useSelectedMemory()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -59,12 +61,15 @@ const AddMemoryPage = () => {
     return price + EXTRA_KINIC_BASE
   }, [price])
 
+  const hasEnoughBalance = Boolean(
+    balance.balanceBase !== null && balance.balanceBase >= MIN_CREATE_BASE
+  )
   const meetsMinimumTransfer = Boolean(transferAmount !== null && transferAmount >= MIN_CREATE_BASE)
   const canCreate = Boolean(
     identityState.isAuthenticated &&
       name.trim() &&
       description.trim() &&
-      transferHeight &&
+      (transferHeight || hasEnoughBalance) &&
       meetsMinimumTransfer
   )
 
@@ -204,7 +209,7 @@ const AddMemoryPage = () => {
       if (!meetsMinimumTransfer) {
         throw new Error('Minimum transfer is 1.002 KINIC.')
       }
-      if (!transferHeight) {
+      if (!transferHeight && !hasEnoughBalance) {
         throw new Error('Please transfer funds before creating the memory.')
       }
 
