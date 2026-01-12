@@ -1,7 +1,7 @@
 // Where: Shared IC configuration for web client.
 // What: Environment-driven host and canister constants.
 // Why: Centralizes IC connection settings for UI and hooks.
-export const IC_HOST = process.env.NEXT_PUBLIC_IC_HOST || 'https://ic0.app'
+export const IC_HOST = 'https://ic0.app'
 export const LEDGER_CANISTER_ID = '73mez-iiaaa-aaaaq-aaasq-cai'
 export const LAUNCHER_CANISTER_ID = 'xfug4-5qaaa-aaaak-afowa-cai'
 export const IDENTITY_PROVIDER_URL = 'https://id.ai'

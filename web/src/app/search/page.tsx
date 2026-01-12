@@ -496,8 +496,8 @@ const SearchPage = () => {
           <CardHeader className='flex flex-col items-start gap-2'>
             <span className='text-lg font-semibold'>Ask</span>
           </CardHeader>
-          <CardContent className='flex min-h-0 flex-1 flex-col gap-4'>
-            <div className='flex min-h-0 flex-1 flex-col gap-3 overflow-auto'>
+          <CardContent className='flex min-h-0 flex-1 flex-col gap-4 overflow-auto'>
+            <div className='flex flex-col gap-3'>
               {chatMessages.length === 0 ? (
                 <div className='rounded-2xl border border-dashed border-zinc-200/80 bg-white/70 px-4 py-6 text-sm text-zinc-500'>
                   Start with a question to generate a draft answer from your sources.

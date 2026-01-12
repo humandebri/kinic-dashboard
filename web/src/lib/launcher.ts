@@ -96,6 +96,23 @@ export type MarketedInstanceStatus =
 
 export type InstanceVersionEntry = [string, string]
 
+const normalizeVersionEntry = (entry: unknown): InstanceVersionEntry | null => {
+  if (Array.isArray(entry) && entry.length >= 2) {
+    const [first, second] = entry
+    if (typeof first === 'string' && typeof second === 'string') {
+      return [first, second]
+    }
+  }
+  if (entry && typeof entry === 'object') {
+    const first = Reflect.get(entry, '0')
+    const second = Reflect.get(entry, '1')
+    if (typeof first === 'string' && typeof second === 'string') {
+      return [first, second]
+    }
+  }
+  return null
+}
+
 const describeTransferError = (error: TransferError): string => {
   if ('GenericError' in error) return error.GenericError.message
   if ('TemporarilyUnavailable' in error) return 'Temporarily unavailable.'
@@ -305,7 +322,10 @@ export const fetchRemainingCycles = async (
 
 export const fetchInstanceVersions = async (identity?: Identity) => {
   const actor = await createLauncherActor(identity)
-  return actor.get_instance_version()
+  const entries = await actor.get_instance_version()
+  return entries
+    .map((entry) => normalizeVersionEntry(entry))
+    .filter((entry): entry is InstanceVersionEntry => entry !== null)
 }
 
 export const fetchMarketedStatus = async (

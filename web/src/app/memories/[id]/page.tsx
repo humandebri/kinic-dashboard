@@ -78,7 +78,8 @@ const MemoryDetailPage = () => {
 
     fetchInstanceVersions(identityState.identity ?? undefined)
       .then((value) => {
-        const match = value.find((entry) => entry[0] === memoryId)
+        const normalizedId = memoryId.trim().toLowerCase()
+        const match = value.find((entry) => entry[0].trim().toLowerCase() === normalizedId)
         setInstanceVersion(match ? match[1] : null)
         if (!match && memoryId) {
           setVersionError('Not found in launcher list.')

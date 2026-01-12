@@ -11,7 +11,7 @@ type SourceSnippet = {
 }
 
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1/models/gemini-3-flash-preview:generateContent'
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent'
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
