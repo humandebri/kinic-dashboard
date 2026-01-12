@@ -32,6 +32,7 @@ const formatPrice = (value: bigint | null) => {
 
 const KINIC_DECIMALS = 100_000_000n
 const EXTRA_KINIC_BASE = 300_000n
+const MIN_CREATE_BASE = 100_200_000n
 
 const AddMemoryPage = () => {
   const identityState = useIdentityState()
@@ -48,9 +49,6 @@ const AddMemoryPage = () => {
   const [transferStatus, setTransferStatus] = useState<string | null>(null)
   const [transferHeight, setTransferHeight] = useState<bigint | null>(null)
 
-  const canCreate = Boolean(
-    identityState.isAuthenticated && name.trim() && description.trim() && transferHeight
-  )
   const canTransfer =
     Boolean(wallet && price !== null && identityState.isAuthenticated && identityState.principalText) &&
     !isTransferring
@@ -60,6 +58,15 @@ const AddMemoryPage = () => {
     if (price === null) return null
     return price + EXTRA_KINIC_BASE
   }, [price])
+
+  const meetsMinimumTransfer = Boolean(transferAmount !== null && transferAmount >= MIN_CREATE_BASE)
+  const canCreate = Boolean(
+    identityState.isAuthenticated &&
+      name.trim() &&
+      description.trim() &&
+      transferHeight &&
+      meetsMinimumTransfer
+  )
 
   const formattedTransferAmount = useMemo(() => {
     if (transferAmount === null) return '--'
@@ -194,6 +201,9 @@ const AddMemoryPage = () => {
     setStatus(null)
 
     try {
+      if (!meetsMinimumTransfer) {
+        throw new Error('Minimum transfer is 1.002 KINIC.')
+      }
       if (!transferHeight) {
         throw new Error('Please transfer funds before creating the memory.')
       }
