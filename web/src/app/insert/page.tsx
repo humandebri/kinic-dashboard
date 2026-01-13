@@ -20,7 +20,7 @@ import { extractTextFromPdfPages } from '@/lib/pdf'
 type UploadKind = 'pdf' | 'markdown' | 'text'
 
 const MAX_SEGMENT_CHARS = 20_000
-const MAX_TOTAL_CHARS = 200_000
+const MAX_TOTAL_CHARS = 300_000
 const UI_YIELD_INTERVAL = 5
 const PREVIEW_LIMIT = 600
 type InsertPhase = 'idle' | 'chunking' | 'inserting' | 'done' | 'error'
