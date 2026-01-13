@@ -6,12 +6,9 @@ import type { ParsedResult } from '@/lib/search-utils'
 
 type SearchResultsProps = {
   results: ParsedResult[]
-  tags: string[]
-  selectedTag: string
   sortMode: 'score_desc' | 'score_asc' | 'tag'
   queryTokens: string[]
   relatedTerms: string[]
-  onTagChange: (value: string) => void
   onSortChange: (value: 'score_desc' | 'score_asc' | 'tag') => void
   onQuerySelect: (value: string) => void
 }
@@ -34,12 +31,9 @@ const highlightText = (text: string, tokens: string[]) => {
 
 const SearchResults = ({
   results,
-  tags,
-  selectedTag,
   sortMode,
   queryTokens,
   relatedTerms,
-  onTagChange,
   onSortChange,
   onQuerySelect
 }: SearchResultsProps) => {
@@ -50,20 +44,6 @@ const SearchResults = ({
   return (
     <div className='space-y-3'>
       <div className='flex flex-wrap items-center gap-2 text-xs text-zinc-600'>
-        <label className='flex items-center gap-2'>
-          <span>Tag</span>
-          <select
-            className='rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs'
-            value={selectedTag}
-            onChange={(event) => onTagChange(event.target.value)}
-          >
-            {tags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
-        </label>
         <label className='flex items-center gap-2'>
           <span>Sort</span>
           <select

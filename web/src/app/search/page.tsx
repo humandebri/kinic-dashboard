@@ -37,6 +37,35 @@ type MessagePart =
   | { kind: 'citation'; value: string; index: number }
 
 const normalizeMemoryId = (value: string) => value.trim()
+const parseCitationOrder = (content: string) => {
+  const matches = content.matchAll(/\[(\d+)\]/g)
+  const seen = new Set<number>()
+  const ordered: number[] = []
+  for (const match of matches) {
+    const indexValue = Number(match[1])
+    if (Number.isNaN(indexValue) || indexValue <= 0) continue
+    if (seen.has(indexValue)) continue
+    seen.add(indexValue)
+    ordered.push(indexValue)
+  }
+  return ordered
+}
+
+const remapCitations = (content: string, order: number[]) => {
+  if (order.length === 0) {
+    return content.replace(/\[\d+\]/g, '').replace(/\s{2,}/g, ' ').trim()
+  }
+  const map = new Map<number, number>()
+  order.forEach((oldIndex, newIndex) => {
+    map.set(oldIndex, newIndex + 1)
+  })
+  return content.replace(/\[(\d+)\]/g, (match, raw) => {
+    const oldIndex = Number(raw)
+    const mapped = map.get(oldIndex)
+    if (!mapped) return ''
+    return `[${mapped}]`
+  }).replace(/\s{2,}/g, ' ').trim()
+}
 
 const SearchPage = () => {
   const identityState = useIdentityState()
@@ -47,7 +76,7 @@ const SearchPage = () => {
   const [status, setStatus] = useState<string | null>(null)
   const [errorMessages, setErrorMessages] = useState<{ canisterId: string; message: string }[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [selectedTag, setSelectedTag] = useState('all')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [sortMode, setSortMode] = useState<SortMode>('score_desc')
   const [savedQueries, setSavedQueries] = useState<string[]>([])
   const [targetInputs, setTargetInputs] = useState<string[]>([''])
@@ -280,14 +309,18 @@ const SearchPage = () => {
   }, [selectedMemoryId, targetInputs, syncTargets])
 
   const tags = useMemo(() => {
-    const tagSet = new Set(results.map((result) => result.tag).filter(Boolean) as string[])
-    return ['all', ...Array.from(tagSet).sort((a, b) => a.localeCompare(b))]
+    const tagSet = new Set(results.map((result) => result.tag ?? 'untagged'))
+    return Array.from(tagSet).sort((a, b) => a.localeCompare(b))
   }, [results])
 
+  const applyTagFilter = useCallback((items: ParsedResult[]) => {
+    if (selectedTags.length === 0) return items
+    const tagSet = new Set(selectedTags)
+    return items.filter((item) => tagSet.has(item.tag ?? 'untagged'))
+  }, [selectedTags])
+
   const filteredResults = useMemo(() => {
-    const filtered = selectedTag === 'all'
-      ? results
-      : results.filter((result) => result.tag === selectedTag)
+    const filtered = applyTagFilter(results)
 
     if (sortMode === 'score_asc') {
       return [...filtered].sort((a, b) => a.score - b.score)
@@ -296,7 +329,7 @@ const SearchPage = () => {
       return [...filtered].sort((a, b) => (a.tag ?? '').localeCompare(b.tag ?? ''))
     }
     return [...filtered].sort((a, b) => b.score - a.score)
-  }, [results, selectedTag, sortMode])
+  }, [applyTagFilter, results, sortMode])
 
   const relatedTerms = useMemo(() => {
     const exclude = new Set([
@@ -356,12 +389,30 @@ const SearchPage = () => {
 
     try {
       const searchResults = await runSearch(trimmed)
-      const answer = await requestAnswer(trimmed, searchResults)
+      const filteredForAnswer = applyTagFilter(searchResults)
+      if (selectedTags.length > 0 && filteredForAnswer.length === 0) {
+        setStatus('No results for selected tags.')
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `${Date.now()}-assistant`,
+            role: 'assistant',
+            content: 'No results found for the selected tags.'
+          }
+        ])
+        return
+      }
+      const answer = await requestAnswer(trimmed, filteredForAnswer)
+      const citationOrder = parseCitationOrder(answer)
+      const remappedAnswer = remapCitations(answer, citationOrder)
+      const citedSources = citationOrder
+        .map((index) => filteredForAnswer[index - 1])
+        .filter((source): source is ParsedResult => Boolean(source))
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: 'assistant',
-        content: answer,
-        sources: searchResults.slice(0, 4)
+        content: remappedAnswer,
+        sources: citedSources
       }
       setChatMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
@@ -375,7 +426,7 @@ const SearchPage = () => {
     } finally {
       setIsAnswering(false)
     }
-  }, [chatInput, hasTargetInput, isAnswering, requestAnswer, runSearch])
+  }, [applyTagFilter, chatInput, hasTargetInput, isAnswering, requestAnswer, runSearch, selectedTags.length])
 
   const parseMessageParts = useCallback((content: string): MessagePart[] => {
     const parts: MessagePart[] = []
@@ -501,6 +552,16 @@ const SearchPage = () => {
                   placeholder='Search query'
                 />
               </div>
+              <div className='flex flex-col gap-2'>
+                <label className='text-sm text-zinc-600'>Tags</label>
+                <MultiSelectComboboxInput
+                  values={selectedTags}
+                  options={tags}
+                  placeholder='Filter by tag'
+                  onChange={setSelectedTags}
+                  emptyMessage='No matching tags'
+                />
+              </div>
               <div className='flex items-center gap-3'>
                 <Button className='rounded-full' onClick={handleSearch} disabled={!canSearch || isSearching}>
                   {isSearching ? 'Searching…' : 'Search'}
@@ -539,21 +600,18 @@ const SearchPage = () => {
             <CardHeader className='flex flex-col items-start gap-2'>
               <span className='text-lg font-semibold'>Results</span>
               <span className='text-muted-foreground text-sm'>
-                Filter by tag, sort results, and review matched snippets.
+                Sort results and review matched snippets.
               </span>
             </CardHeader>
             <CardContent className='min-w-0 space-y-3'>
-              <SearchResults
-                results={filteredResults}
-                tags={tags}
-                selectedTag={selectedTag}
-                sortMode={sortMode}
-                queryTokens={queryTokens}
-                relatedTerms={relatedTerms}
-                onTagChange={setSelectedTag}
-                onSortChange={setSortMode}
-                onQuerySelect={setQuery}
-              />
+            <SearchResults
+              results={filteredResults}
+              sortMode={sortMode}
+              queryTokens={queryTokens}
+              relatedTerms={relatedTerms}
+              onSortChange={setSortMode}
+              onQuerySelect={setQuery}
+            />
             </CardContent>
           </Card>
         </div>
@@ -591,9 +649,11 @@ const SearchPage = () => {
                               id={`${message.id}-source-${index + 1}`}
                               className='rounded-xl bg-zinc-50 px-3 py-2'
                             >
-                              <div className='flex items-center gap-2 text-[10px] text-zinc-500'>
+                              <div className='flex flex-wrap items-center gap-2 text-[10px] text-zinc-500'>
                                 <span className='font-semibold'>[{index + 1}]</span>
-                                <span className='font-mono break-all'>{source.memoryId}</span>
+                                <span className='font-mono'>{source.memoryId}</span>
+                                <span className='text-zinc-400'>:</span>
+                                <span className='font-mono'>{source.tag ?? 'untagged'}</span>
                               </div>
                               <div className='break-words text-xs text-zinc-700'>{source.sentence}</div>
                             </div>
