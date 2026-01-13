@@ -408,13 +408,13 @@ const SearchPage = () => {
   const renderMessageContent = useCallback(
     (message: ChatMessage) => {
       if (message.role !== 'assistant') {
-        return <div className='whitespace-pre-line'>{message.content}</div>
+        return <div className='whitespace-pre-line break-words'>{message.content}</div>
       }
 
       const sourceCount = message.sources ? message.sources.length : 0
       const parts = parseMessageParts(message.content)
       return (
-        <div className='whitespace-pre-line'>
+        <div className='whitespace-pre-line break-words'>
           {parts.map((part, index) => {
             if (part.kind === 'text') {
               return <span key={`${message.id}-text-${index}`}>{part.value}</span>
@@ -441,13 +441,13 @@ const SearchPage = () => {
 
   return (
     <AppShell pageTitle='Search' identityState={identityState} fullWidth>
-      <div className='grid items-stretch gap-6 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]'>
+      <div className='grid w-full max-w-none items-stretch gap-6 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]'>
         <div className='grid h-full min-w-0 gap-6'>
-          <Card>
+          <Card className='min-w-0'>
             <CardHeader className='flex flex-col items-start gap-2'>
               <span className='text-lg font-semibold'>Sources & search</span>
             </CardHeader>
-            <CardContent className='space-y-4'>
+            <CardContent className='min-w-0 space-y-4'>
               <div className='flex flex-col gap-2'>
                 <label className='text-sm text-zinc-600'>Targets</label>
                 <div className='text-sm'>
@@ -535,14 +535,14 @@ const SearchPage = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className='min-w-0'>
             <CardHeader className='flex flex-col items-start gap-2'>
               <span className='text-lg font-semibold'>Results</span>
               <span className='text-muted-foreground text-sm'>
                 Filter by tag, sort results, and review matched snippets.
               </span>
             </CardHeader>
-            <CardContent className='space-y-3'>
+            <CardContent className='min-w-0 space-y-3'>
               <SearchResults
                 results={filteredResults}
                 tags={tags}
@@ -562,7 +562,7 @@ const SearchPage = () => {
           <CardHeader className='flex flex-col items-start gap-2'>
             <span className='text-lg font-semibold'>Ask</span>
           </CardHeader>
-          <CardContent className='flex min-h-0 flex-1 flex-col gap-4 overflow-auto'>
+          <CardContent className='flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-auto'>
             <div className='flex flex-col gap-3'>
               {chatMessages.length === 0 ? (
                 <div className='rounded-2xl border border-dashed border-zinc-200/80 bg-white/70 px-4 py-6 text-sm text-zinc-500'>
@@ -595,7 +595,7 @@ const SearchPage = () => {
                                 <span className='font-semibold'>[{index + 1}]</span>
                                 <span className='font-mono break-all'>{source.memoryId}</span>
                               </div>
-                              <div className='text-xs text-zinc-700'>{source.sentence}</div>
+                              <div className='break-words text-xs text-zinc-700'>{source.sentence}</div>
                             </div>
                           ))}
                         </div>

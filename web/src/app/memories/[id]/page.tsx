@@ -18,7 +18,6 @@ import {
   fetchRemainingCycles,
   fetchSharedMemories,
   registerSharedMemory,
-  updateMemoryInstance,
   updateMemoryInstanceWithOption
 } from '@/lib/launcher'
 
@@ -39,7 +38,6 @@ const MemoryDetailPage = () => {
   const [addUserStatus, setAddUserStatus] = useState<string | null>(null)
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
   const [isAddingUser, setIsAddingUser] = useState(false)
-  const [isUpdating, setIsUpdating] = useState(false)
   const [isUpdatingWithOption, setIsUpdatingWithOption] = useState(false)
   const [launcherCycles, setLauncherCycles] = useState<bigint | null>(null)
   const [launcherMetaStatus, setLauncherMetaStatus] = useState<string | null>(null)
@@ -126,23 +124,6 @@ const MemoryDetailPage = () => {
       setAddUserStatus(message)
     } finally {
       setIsAddingUser(false)
-    }
-  }
-
-  const handleUpdateInstance = async () => {
-    if (!identityState.identity || !memoryId) return
-
-    setIsUpdating(true)
-    setUpdateStatus(null)
-
-    try {
-      await updateMemoryInstance(identityState.identity, memoryId)
-      setUpdateStatus('Update triggered.')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update instance'
-      setUpdateStatus(message)
-    } finally {
-      setIsUpdating(false)
     }
   }
 
