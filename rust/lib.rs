@@ -42,6 +42,19 @@ pub async fn run() -> Result<()> {
 
     fmt().with_max_level(max).without_time().try_init().ok();
 
+    if cli.global.ii
+        && matches!(
+            cli.command,
+            cli::Command::Create(_) | cli::Command::Balance(_)
+        )
+    {
+        if !cfg!(feature = "experimental") {
+            anyhow::bail!(
+                "For security reasons, using a locally hosted origin Internet Identity is not recommended for commands involving asset transfers."
+            );
+        }
+    }
+
     let needs_identity_path = matches!(cli.command, cli::Command::Login(_)) || cli.global.ii;
     let identity_path = if needs_identity_path {
         Some(match cli.global.identity_path.clone() {
