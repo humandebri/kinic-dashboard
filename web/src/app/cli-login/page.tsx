@@ -138,6 +138,17 @@ const findExpiration = (delegations: PayloadDelegation[]): string => {
   return min.toString()
 }
 
+const formatExpiration = (expirationNs: string): string => {
+  try {
+    const ns = BigInt(expirationNs)
+    if (ns <= 0n) return '0'
+    const ms = ns / 1_000_000n
+    return new Date(Number(ms)).toISOString()
+  } catch {
+    return 'invalid'
+  }
+}
+
 const encryptPayload = async (
   payload: Record<string, unknown>,
   boxPublicKeyHex: string
@@ -264,11 +275,17 @@ const CliLoginContent = () => {
         try {
           setStatus('Saving delegation...')
           const normalizedDelegations = normalizeDelegations(event.data.delegations)
+          const expirationNs = findExpiration(normalizedDelegations)
+          console.info('[cli-login] delegation expiration', {
+            expirationNs,
+            expirationIso: formatExpiration(expirationNs),
+            maxTimeToLiveNs: params.maxTimeToLiveNs.toString()
+          })
           const payload = {
             delegations: normalizedDelegations,
             userPublicKey: Array.from(event.data.userPublicKey),
             sessionPublicKey: Array.from(hexToBytes(params.sessionPublicKeyHex)),
-            expirationNs: findExpiration(normalizedDelegations),
+            expirationNs,
             derivationOrigin: params.derivationOrigin
           }
 

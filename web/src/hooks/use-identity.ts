@@ -69,11 +69,16 @@ export const useIdentity = (): IdentityState => {
   const login = useCallback(async () => {
     if (!client) return
 
+    const ttl = loadSessionTtl()
+    console.info('[identity] login maxTimeToLive', {
+      maxTimeToLiveNs: ttl.toString()
+    })
+
     await new Promise<void>((resolve, reject) => {
       client.login({
         identityProvider: IDENTITY_PROVIDER_URL,
         derivationOrigin: DERIVATION_ORIGIN,
-        maxTimeToLive: loadSessionTtl(),
+        maxTimeToLive: ttl,
         onSuccess: () => resolve(),
         onError: (error) => reject(error)
       })

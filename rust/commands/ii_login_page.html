@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kinic CLI Login</title>
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 32px;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      main {
+        max-width: 520px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      p {
+        margin: 0 0 12px;
+        font-size: 14px;
+        color: #475569;
+      }
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 18px;
+        background: #0f172a;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #334155;
+      }
+      .error {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #dc2626;
+      }
+      .principal {
+        margin-top: 12px;
+        font-size: 12px;
+        word-break: break-all;
+        color: #0f172a;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Kinic CLI Login</h1>
+      <p>Authorize Internet Identity and return the delegation to the CLI.</p>
+      <button id="connect">Connect Internet Identity</button>
+      <div class="status" id="status">Ready.</div>
+      <div class="error" id="error"></div>
+      <div class="principal" id="principal"></div>
+    </main>
+
+    <script>
+      const II_URL = "{{II_URL}}";
+      const II_ORIGIN = "{{II_ORIGIN}}";
+      const SESSION_KEY_HEX = "{{SESSION_KEY_HEX}}";
+      const STATE = "{{STATE}}";
+      const TTL_NS = "{{TTL_NS}}";
+
+      const statusEl = document.getElementById("status");
+      const errorEl = document.getElementById("error");
+      const principalEl = document.getElementById("principal");
+      const connectBtn = document.getElementById("connect");
+
+      let authWindow = null;
+
+      const setStatus = (text) => {
+        statusEl.textContent = text;
+      };
+
+      const setError = (text) => {
+        errorEl.textContent = text;
+      };
+
+      const hexToBytes = (hex) => {
+        const clean = hex.trim();
+        if (clean.length % 2 !== 0) return new Uint8Array();
+        const out = new Uint8Array(clean.length / 2);
+        for (let i = 0; i < clean.length; i += 2) {
+          out[i / 2] = Number.parseInt(clean.slice(i, i + 2), 16);
+        }
+        return out;
+      };
+
+      const normalizeTargets = (targets) => {
+        if (!Array.isArray(targets)) return undefined;
+        return targets.map((target) => (typeof target === "string" ? target : target.toText()));
+      };
+
+      const openAuth = () => {
+        setError("");
+        authWindow = window.open(II_URL, "ii-auth", "width=480,height=640");
+        if (!authWindow) {
+          setError("Popup blocked. Allow popups and try again.");
+          return;
+        }
+        setStatus("Waiting for Internet Identity...");
+      };
+
+      connectBtn.addEventListener("click", () => {
+        connectBtn.disabled = true;
+        openAuth();
+      });
+
+      window.addEventListener("message", async (event) => {
+        if (event.origin !== II_ORIGIN) return;
+        const data = event.data;
+        if (!data || typeof data !== "object") return;
+
+        if (data.kind === "authorize-ready") {
+          authWindow.postMessage(
+            {
+              kind: "authorize-client",
+              sessionPublicKey: hexToBytes(SESSION_KEY_HEX),
+              maxTimeToLive: BigInt(TTL_NS),
+              derivationOrigin: window.location.origin,
+            },
+            II_ORIGIN
+          );
+          return;
+        }
+
+        if (data.kind === "authorize-client-failure") {
+          setError("Login failed. Please retry.");
+          connectBtn.disabled = false;
+          return;
+        }
+
+        if (data.kind === "authorize-client-success") {
+          try {
+            setStatus("Saving delegation...");
+            const delegations = data.delegations.map((entry) => ({
+              delegation: {
+                pubkey: Array.from(entry.delegation.pubkey),
+                expiration: entry.delegation.expiration.toString(),
+                targets: normalizeTargets(entry.delegation.targets),
+              },
+              signature: Array.from(entry.signature),
+            }));
+
+            const payload = {
+              delegations,
+              userPublicKey: Array.from(data.userPublicKey),
+              state: STATE,
+            };
+
+            const response = await fetch("/callback", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              throw new Error("Callback failed.");
+            }
+
+            const result = await response.json();
+            setStatus("Done. You can close this tab.");
+            if (result && typeof result.principal === "string") {
+              principalEl.textContent = `Principal: ${result.principal}`;
+            }
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Callback failed.");
+            connectBtn.disabled = false;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

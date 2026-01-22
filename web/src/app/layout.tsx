@@ -1,14 +1,14 @@
 // Where: Root Next.js layout wrapper.
 // What: Defines global fonts and app-wide providers.
 // Why: Ensures shared state (balance) and styles apply to every route.
-import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 
 import { BalanceProvider } from '@/components/providers/balance-provider'
 import { IdentityProvider } from '@/components/providers/identity-provider'
 
 import './globals.css'
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Kinic Memory Dashboard',
   description:
     'Kinic provides trustless agent memory. Build verifiable, owned memory on the Internet Computer. zkTAM keeps memory verifiable, owned, and portable.',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children
 }: Readonly<{
-  children: React.ReactNode
+  children: ReactNode
 }>) {
   return (
     <html lang="en">

@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Principal } from '@dfinity/principal'
+import { useParams } from 'next/navigation'
 
 import AppShell from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
@@ -12,10 +13,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useIdentityState } from '@/components/providers/identity-provider'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
-import { createMemoryActor } from '@/lib/memory'
+import { createMemoryActor, fetchMemoryCycles, fetchMemoryVersion } from '@/lib/memory'
 import {
-  fetchInstanceVersions,
-  fetchRemainingCycles,
   fetchSharedMemories,
   registerSharedMemory,
   updateMemoryInstanceWithOption
@@ -32,7 +31,10 @@ const roleValueMap: Record<RoleOption, number> = {
 const MemoryDetailPage = () => {
   const identityState = useIdentityState()
   const { selectedMemoryId } = useSelectedMemory()
-  const memoryId = selectedMemoryId?.trim() ?? ''
+  const params = useParams()
+  const routeId = params?.id
+  const routeMemoryId = Array.isArray(routeId) ? routeId[0] : routeId
+  const memoryId = (routeMemoryId ?? selectedMemoryId ?? '').trim()
   const [principalInput, setPrincipalInput] = useState('')
   const [role, setRole] = useState<RoleOption>('writer')
   const [addUserStatus, setAddUserStatus] = useState<string | null>(null)
@@ -62,7 +64,7 @@ const MemoryDetailPage = () => {
     setVersionError(null)
     setSharedError(null)
 
-    fetchRemainingCycles(identityState.identity ?? undefined, memoryId)
+    fetchMemoryCycles(identityState.identity ?? undefined, memoryId)
       .then((value) => {
         setLauncherCycles(value)
       })
@@ -74,14 +76,9 @@ const MemoryDetailPage = () => {
         setIsLoadingLauncherMeta(false)
       })
 
-    fetchInstanceVersions(identityState.identity ?? undefined)
+    fetchMemoryVersion(identityState.identity ?? undefined, memoryId)
       .then((value) => {
-        const normalizedId = memoryId.trim().toLowerCase()
-        const match = value.find((entry) => entry[0].trim().toLowerCase() === normalizedId)
-        setInstanceVersion(match ? match[1] : null)
-        if (!match && memoryId) {
-          setVersionError('Not found in launcher list.')
-        }
+        setInstanceVersion(value)
       })
       .catch(() => {
         setInstanceVersion(null)
@@ -99,9 +96,20 @@ const MemoryDetailPage = () => {
   }, [identityState.identity, memoryId])
 
   useEffect(() => {
-    if (!memoryId) return
+    if (!memoryId) {
+      console.info('[memories] missing memoryId', {
+        routeMemoryId,
+        selectedMemoryId
+      })
+      return
+    }
+    console.info('[memories] loadLauncherMeta', {
+      memoryId,
+      routeMemoryId,
+      selectedMemoryId
+    })
     loadLauncherMeta()
-  }, [loadLauncherMeta, memoryId])
+  }, [loadLauncherMeta, memoryId, routeMemoryId, selectedMemoryId])
 
   const handleAddUser = async () => {
     if (!identityState.identity || !memoryId) return
@@ -110,6 +118,11 @@ const MemoryDetailPage = () => {
     setAddUserStatus(null)
 
     try {
+      console.info('[memories] add_new_user', {
+        memoryId,
+        role,
+        principalInput: principalInput.trim()
+      })
       const actor = await createMemoryActor(identityState.identity, memoryId)
       if (principalInput.trim().toLowerCase() === 'anonymous') {
         throw new Error('anonymous is not allowed')
@@ -134,6 +147,10 @@ const MemoryDetailPage = () => {
     setUpdateStatus(null)
 
     try {
+      console.info('[memories] update_instance_with_option', {
+        memoryId,
+        option: false
+      })
       await updateMemoryInstanceWithOption(identityState.identity, memoryId, false)
       setUpdateStatus('Update triggered.')
     } catch (error) {
@@ -151,6 +168,9 @@ const MemoryDetailPage = () => {
     setSharedStatus(null)
 
     try {
+      console.info('[memories] register_shared_memory', {
+        memoryId
+      })
       const principal = Principal.fromText(memoryId)
       await registerSharedMemory(identityState.identity, principal)
       setSharedStatus('Shared memory registered.')
@@ -283,9 +303,9 @@ const MemoryDetailPage = () => {
             <Button
               className='rounded-full'
               onClick={handleRegisterShared}
-              disabled={!canSubmit || isRegisteringShared || isSharedMemory}
+              disabled
             >
-              {isRegisteringShared ? 'Registering...' : 'Register current memory'}
+              Register current memory (disabled)
             </Button>
             {sharedStatus ? <span className='text-sm text-muted-foreground'>{sharedStatus}</span> : null}
           </CardContent>
