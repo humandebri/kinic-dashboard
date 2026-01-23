@@ -56,11 +56,9 @@ import {
 import ProfileDropdown from '@/components/shadcn-studio/blocks/dropdown-profile'
 import { primarySection, pageSections } from '@/data/dashboard-nav'
 import { useBalance } from '@/components/providers/balance-provider'
+import { useMemoriesState } from '@/components/providers/memories-provider'
 import type { IdentityState } from '@/hooks/use-identity'
 import { createLedgerActor, transferIcrc1 } from '@/lib/ledger'
-import { roleLabelMap } from '@/lib/access-control'
-import { fetchMemoryUsers } from '@/lib/memory'
-import { useMemories } from '@/hooks/use-memories'
 import { useMounted } from '@/hooks/use-mounted'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 
@@ -124,13 +122,10 @@ const AppShell = ({
 }: AppShellProps) => {
   const mounted = useMounted()
   const balance = useBalance()
-  const memories = useMemories(identityState.identity, identityState.isReady)
+  const { memories, memoryPermissions, ensureMemoryPermissions } = useMemoriesState()
   const { selectedMemoryId, setSelectedMemoryId } = useSelectedMemory()
   const router = useRouter()
   const [customCanisters, setCustomCanisters] = useState<string[]>([])
-  const [memoryPermissions, setMemoryPermissions] = useState<
-    Record<string, { label: string | null; isLoading: boolean; error: string | null; principal: string | null }>
-  >({})
   const [sendModalOpen, setSendModalOpen] = useState(false)
   const [toAddress, setToAddress] = useState('')
   const [amount, setAmount] = useState('')
@@ -154,11 +149,11 @@ const AppShell = ({
     const merged = new Set<string>()
     for (const item of customCanisters) merged.add(item)
     if (selectedMemoryId) merged.add(selectedMemoryId)
-    for (const memory of memories.memories) {
+    for (const memory of memories) {
       if (memory.principalText) merged.add(memory.principalText)
     }
     return Array.from(merged)
-  }, [customCanisters, selectedMemoryId, memories.memories])
+  }, [customCanisters, selectedMemoryId, memories])
 
   const memoryOptions = useMemo(() => {
     return memoryOptionIds.map((id) => {
@@ -182,48 +177,9 @@ const AppShell = ({
     return formatKinicInput(balance.balanceBase)
   }, [balance.balanceBase])
 
-  const loadMemoryPermission = async (memoryId: string, principalText: string) => {
-    setMemoryPermissions((prev) => ({
-      ...prev,
-      [memoryId]: { label: null, isLoading: true, error: null, principal: principalText }
-    }))
-    try {
-      const users = await fetchMemoryUsers(identityState.identity ?? undefined, memoryId)
-      const matched = users.find(([userText]) => userText === principalText)
-      const label = matched ? roleLabelMap[matched[1]] ?? 'unknown' : 'no access'
-      setMemoryPermissions((prev) => ({
-        ...prev,
-        [memoryId]: { label, isLoading: false, error: null, principal: principalText }
-      }))
-    } catch (permissionError) {
-      const message = permissionError instanceof Error ? permissionError.message : 'Failed to load permission.'
-      const isInvalidUser =
-        message.includes('Invalid user') || message.includes('IC0406') || message.includes('invalid user')
-      setMemoryPermissions((prev) => ({
-        ...prev,
-        [memoryId]: {
-          label: isInvalidUser ? 'no access' : 'unknown',
-          isLoading: false,
-          error: message,
-          principal: principalText
-        }
-      }))
-    }
-  }
-
   useEffect(() => {
-    if (!identityState.isAuthenticated || !identityState.principalText) {
-      setMemoryPermissions({})
-      return
-    }
-
-    memoryOptionIds.forEach((memoryId) => {
-      const permissionEntry = memoryPermissions[memoryId]
-      if (!permissionEntry || permissionEntry.principal !== identityState.principalText) {
-        loadMemoryPermission(memoryId, identityState.principalText)
-      }
-    })
-  }, [memoryOptionIds, memoryPermissions, identityState.isAuthenticated, identityState.principalText, identityState.identity])
+    ensureMemoryPermissions(memoryOptionIds)
+  }, [memoryOptionIds, ensureMemoryPermissions])
 
   const openSendModal = () => {
     setSendModalOpen(true)

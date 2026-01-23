@@ -3,7 +3,7 @@
 // Why: Allows running add_new_user and update_instance from the UI.
 'use client'
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Principal } from '@dfinity/principal'
 import { useParams } from 'next/navigation'
 
@@ -21,18 +21,48 @@ import {
   type RoleOption
 } from '@/lib/access-control'
 import { LAUNCHER_CANISTER_ID } from '@/lib/ic-config'
-import { createMemoryActor, fetchMemoryUsers } from '@/lib/memory'
+import {
+  changeMemoryName,
+  createMemoryActor,
+  fetchMemoryStatus,
+  fetchMemoryUsers,
+  type StatusForFrontend
+} from '@/lib/memory'
 import { useAccessManagerStore } from '@/stores/access-manager'
 import { useMemoryDetailStore } from '@/stores/memory-detail'
 import {
   fetchSharedMemories,
   registerSharedMemory,
-  updateMemoryInstanceWithOption
 } from '@/lib/launcher'
 
-const resolveUserLabel = (principalText: string, roleValue: number) => {
-  if (principalText === LAUNCHER_CANISTER_ID) return 'launcher canister'
-  return roleLabelMap[roleValue] ?? 'unknown'
+  const resolveUserLabel = (principalText: string, roleValue: number, selfPrincipal: string | null) => {
+    if (principalText === LAUNCHER_CANISTER_ID) return 'launcher canister'
+    const base = roleLabelMap[roleValue] ?? 'unknown'
+    if (selfPrincipal && principalText === selfPrincipal) {
+      return `${base} (me)`
+    }
+    return base
+  }
+
+const parseNameMeta = (rawName: string | null) => {
+  if (!rawName) return { name: null, description: null }
+  const trimmed = rawName.trim()
+  if (!trimmed.startsWith('{')) return { name: rawName, description: null }
+  try {
+    const parsed: unknown = JSON.parse(trimmed)
+    if (typeof parsed === 'object' && parsed !== null) {
+      const nameValue = Reflect.get(parsed, 'name')
+      const descriptionValue = Reflect.get(parsed, 'description')
+      const name = typeof nameValue === 'string' ? nameValue : null
+      const description = typeof descriptionValue === 'string' ? descriptionValue : null
+      if (name || description) {
+        return { name: name ?? rawName, description }
+      }
+    }
+  } catch {
+    // Ignore JSON parse errors and fall back to raw name.
+  }
+  return { name: rawName, description: null }
 }
 
 const MemoryDetailPage = () => {
@@ -42,10 +72,6 @@ const MemoryDetailPage = () => {
   const routeId = params?.id
   const routeMemoryId = Array.isArray(routeId) ? routeId[0] : routeId
   const memoryId = (routeMemoryId ?? selectedMemoryId ?? '').trim()
-  const updateStatus = useMemoryDetailStore((state) => state.updateStatus)
-  const setUpdateStatus = useMemoryDetailStore((state) => state.setUpdateStatus)
-  const isUpdatingWithOption = useMemoryDetailStore((state) => state.isUpdatingWithOption)
-  const setIsUpdatingWithOption = useMemoryDetailStore((state) => state.setIsUpdatingWithOption)
   const sharedMemories = useMemoryDetailStore((state) => state.sharedMemories)
   const setSharedMemories = useMemoryDetailStore((state) => state.setSharedMemories)
   const sharedError = useMemoryDetailStore((state) => state.sharedError)
@@ -85,12 +111,119 @@ const MemoryDetailPage = () => {
   const setIsRegisteringShared = useMemoryDetailStore((state) => state.setIsRegisteringShared)
   const sharedStatus = useMemoryDetailStore((state) => state.sharedStatus)
   const setSharedStatus = useMemoryDetailStore((state) => state.setSharedStatus)
+  const [statusEntry, setStatusEntry] = useState<{
+    status: StatusForFrontend | null
+    isLoading: boolean
+    error: string | null
+    access: 'ok' | 'no-access' | 'unknown'
+  }>({ status: null, isLoading: false, error: null, access: 'unknown' })
+  const [nameInput, setNameInput] = useState('')
+  const [descriptionInput, setDescriptionInput] = useState('')
+  const [nameSaving, setNameSaving] = useState(false)
+  const [nameStatus, setNameStatus] = useState<string | null>(null)
+  const [nameModalOpen, setNameModalOpen] = useState(false)
 
   const canSubmit = identityState.isAuthenticated && memoryId.length > 0
+  const selfPrincipalText = identityState.identity?.getPrincipal().toText() ?? null
+  const confirmUserRole = useMemo(() => {
+    if (!confirmPrincipal) return null
+    const selection = roleSelections[confirmPrincipal]
+    if (selection) return selection
+    const entry = sharedUsers.find(([principalText]) => principalText === confirmPrincipal)
+    if (!entry) return null
+    return roleOptionFromValue(entry[1])
+  }, [confirmPrincipal, roleSelections, sharedUsers])
 
   const isSharedMemory = useMemo(() => {
     return memoryId.length > 0 && sharedMemories.includes(memoryId)
   }, [memoryId, sharedMemories])
+
+  const formatCycles = (value: bigint | null) => {
+    if (value === null) return '--'
+    const trillion = 1_000_000_000_000n
+    const units = Number(value) / Number(trillion)
+    return `${units.toFixed(2)}T`
+  }
+
+  const formatScaled = (value: bigint | null, unit: string, scale: bigint, fractionDigits: number) => {
+    if (value === null) return '--'
+    const whole = value / scale
+    const fraction = value % scale
+    if (fraction === 0n) return `${whole.toString()}${unit}`
+    const pad = fraction.toString().padStart(fractionDigits, '0')
+    const trimmed = pad.slice(0, 2)
+    return `${whole.toString()}.${trimmed}${unit}`
+  }
+
+  const formatNatAuto = (value: bigint | null) => {
+    if (value === null) return '--'
+    const abs = value < 0n ? -value : value
+    if (abs >= 1_000_000_000n) return formatScaled(value, 'B', 1_000_000_000n, 9)
+    if (abs >= 1_000_000n) return formatScaled(value, 'M', 1_000_000n, 6)
+    if (abs >= 1_000n) return formatScaled(value, 'K', 1_000n, 3)
+    return value.toString()
+  }
+
+  const formatNatBillions = (value: bigint | null) => {
+    return formatScaled(value, 'B', 1_000_000_000n, 9)
+  }
+
+  const formatNatMillions = (value: bigint | null) => {
+    return formatScaled(value, 'M', 1_000_000n, 6)
+  }
+
+  useEffect(() => {
+    if (!memoryId) return
+    if (!identityState.isAuthenticated || !identityState.identity) {
+      setStatusEntry({ status: null, isLoading: false, error: null, access: 'unknown' })
+      return
+    }
+    setStatusEntry((prev) => ({ ...prev, isLoading: true, error: null }))
+    fetchMemoryStatus(identityState.identity, memoryId)
+      .then((status) => {
+        setStatusEntry({ status, isLoading: false, error: null, access: 'ok' })
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Failed to load memory status.'
+        const isInvalidUser =
+          message.includes('Invalid user') || message.includes('IC0406') || message.includes('invalid user')
+        setStatusEntry({
+          status: null,
+          isLoading: false,
+          error: isInvalidUser ? null : message,
+          access: isInvalidUser ? 'no-access' : 'unknown'
+        })
+      })
+  }, [identityState.identity, identityState.isAuthenticated, memoryId])
+
+  useEffect(() => {
+    if (!statusEntry.status) return
+    const nameMeta = parseNameMeta(statusEntry.status.name)
+    setNameInput(nameMeta.name ?? '')
+    setDescriptionInput(nameMeta.description ?? '')
+  }, [statusEntry.status])
+
+  const handleSaveName = async () => {
+    if (!identityState.identity || !memoryId) return
+    setNameSaving(true)
+    setNameStatus(null)
+    try {
+      const payload = JSON.stringify({
+        name: nameInput.trim(),
+        description: descriptionInput.trim()
+      })
+      await changeMemoryName(identityState.identity, memoryId, payload)
+      setNameStatus('Updated.')
+      const nextStatus = await fetchMemoryStatus(identityState.identity, memoryId)
+      setStatusEntry({ status: nextStatus, isLoading: false, error: null, access: 'ok' })
+      setNameModalOpen(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update name.'
+      setNameStatus(message)
+    } finally {
+      setNameSaving(false)
+    }
+  }
 
   const loadLauncherMeta = useCallback(async () => {
     if (!memoryId) return
@@ -138,23 +271,6 @@ const MemoryDetailPage = () => {
     loadLauncherMeta()
   }, [loadLauncherMeta, memoryId, routeMemoryId, selectedMemoryId])
 
-
-  const handleUpdateInstanceWithOption = async () => {
-    if (!identityState.identity || !memoryId) return
-
-    setIsUpdatingWithOption(true)
-    setUpdateStatus(null)
-
-    try {
-      await updateMemoryInstanceWithOption(identityState.identity, memoryId, false)
-      setUpdateStatus('Update triggered.')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update instance'
-      setUpdateStatus(message)
-    } finally {
-      setIsUpdatingWithOption(false)
-    }
-  }
 
   const handleRegisterShared = async () => {
     if (!identityState.identity || !memoryId) return
@@ -207,7 +323,7 @@ const MemoryDetailPage = () => {
       const actor = await createMemoryActor(identityState.identity, memoryId)
       const principal = Principal.fromText(accessPrincipal.trim())
       await actor.add_new_user(principal, roleValueMap[accessRole])
-      setAccessStatus('User role saved.')
+      setAccessStatus(null)
       setAccessPrincipal('')
       await refreshUsers()
     } catch (error) {
@@ -231,7 +347,7 @@ const MemoryDetailPage = () => {
     setConfirmPrincipal(principalText)
     setConfirmKeyword(keyword)
     setConfirmInput('')
-    setConfirmHandler(() => handler)
+    setConfirmHandler(handler)
     setConfirmOpen(true)
   }
 
@@ -242,6 +358,13 @@ const MemoryDetailPage = () => {
     setConfirmKeyword(null)
     setConfirmInput('')
     setConfirmHandler(null)
+    setAccessStatus(null)
+  }
+
+  const closeAccessModal = () => {
+    setAccessModalOpen(false)
+    setAccessStatus(null)
+    setAccessBusyUser(null)
   }
 
   const handleRoleSelectionChange = (principalText: string, value: string) => {
@@ -303,11 +426,73 @@ const MemoryDetailPage = () => {
   return (
     <AppShell pageTitle='Memories' pageSubtitle='Detail' identityState={identityState}>
       <div className='grid gap-6'>
+        <Card>
+          <CardHeader className='flex flex-col items-start gap-2'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <span className='text-lg font-semibold'>
+                {statusEntry.status ? parseNameMeta(statusEntry.status.name).name ?? 'Status' : 'Status'}
+              </span>
+              <Button
+                size='sm'
+                className='rounded-full ml-3'
+                onClick={() => setNameModalOpen(true)}
+                disabled={!identityState.isAuthenticated}
+              >
+                Edit name
+              </Button>
+              {nameStatus ? <span className='text-xs text-muted-foreground'>{nameStatus}</span> : null}
+            </div>
+          </CardHeader>
+          <CardContent className='space-y-3 text-sm'>
+            {statusEntry.isLoading ? <span className='text-zinc-500'>Loading…</span> : null}
+            {statusEntry.access === 'no-access' ? (
+              <span className='text-zinc-500'>No access to status.</span>
+            ) : null}
+            {statusEntry.error ? <span className='text-rose-500'>{statusEntry.error}</span> : null}
+            {statusEntry.status ? (
+              <div className='space-y-3'>
+                <div>
+                  <div className='text-xs text-zinc-500'>Description</div>
+                  <div className='font-mono text-xs'>
+                    {parseNameMeta(statusEntry.status.name).description ?? '--'}
+                  </div>
+                </div>
+                <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-5'>
+                  <div>
+                    <div className='text-xs text-zinc-500'>Version</div>
+                    <div className='font-mono text-xs'>{statusEntry.status.version ?? '--'}</div>
+                  </div>
+                  <div>
+                    <div className='text-xs text-zinc-500'>Cycles</div>
+                    <div className='font-mono text-xs'>{formatCycles(statusEntry.status.cycles ?? null)}</div>
+                  </div>
+                  <div>
+                    <div className='text-xs text-zinc-500'>Idle/day</div>
+                    <div className='font-mono text-xs'>
+                      {formatNatBillions(statusEntry.status.idle_cycles_burned_per_day ?? null)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className='text-xs text-zinc-500'>Freezing</div>
+                    <div className='font-mono text-xs'>
+                      {formatNatMillions(statusEntry.status.freezing_threshold ?? null)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className='text-xs text-zinc-500'>Mem size</div>
+                    <div className='font-mono text-xs'>
+                      {formatNatAuto(statusEntry.status.memory_size ?? null)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className='flex flex-col items-start gap-2'>
             <span className='text-lg font-semibold'>Access management</span>
-            <span className='text-muted-foreground text-sm'>Review user roles and edit in a modal.</span>
           </CardHeader>
           <CardContent className='flex flex-col items-start gap-3'>
             {sharedUsersError ? <span className='text-xs text-rose-500'>{sharedUsersError}</span> : null}
@@ -323,7 +508,7 @@ const MemoryDetailPage = () => {
                   >
                     <span className='font-mono text-xs text-zinc-800'>{principalText}</span>
                     <span className='rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-600'>
-                      {resolveUserLabel(principalText, roleValue)}
+                      {resolveUserLabel(principalText, roleValue, selfPrincipalText)}
                     </span>
                   </div>
                 ))}
@@ -347,26 +532,7 @@ const MemoryDetailPage = () => {
 
         <Card>
           <CardHeader className='flex flex-col items-start gap-2'>
-            <span className='text-lg font-semibold'>Maintenance</span>
-            <span className='text-muted-foreground text-sm'>Run update_instance_with_option (update).</span>
-          </CardHeader>
-          <CardContent className='flex flex-col items-start gap-3'>
-            <Button
-              variant='outline'
-              className='rounded-full'
-              onClick={handleUpdateInstanceWithOption}
-              disabled={!canSubmit || isUpdatingWithOption}
-            >
-              {isUpdatingWithOption ? 'Updating...' : 'Trigger update (option)'}
-            </Button>
-            {updateStatus ? <span className='text-sm text-muted-foreground'>{updateStatus}</span> : null}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className='flex flex-col items-start gap-2'>
             <span className='text-lg font-semibold'>Shared memory</span>
-            <span className='text-muted-foreground text-sm'>Register or list shared memories.</span>
           </CardHeader>
           <CardContent className='flex flex-col items-start gap-3'>
             <div className='text-xs text-zinc-600'>
@@ -394,16 +560,16 @@ const MemoryDetailPage = () => {
       {accessModalOpen ? (
         <div
           className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
-          onClick={() => setAccessModalOpen(false)}
+          onClick={closeAccessModal}
           role='presentation'
         >
           <div
-            className='w-[36rem] max-w-full rounded-2xl bg-white p-6 shadow-xl'
+            className='w-[48rem] max-w-full rounded-2xl bg-white p-6 shadow-xl'
             onClick={(event) => event.stopPropagation()}
           >
             <div className='flex items-center justify-between'>
               <h2 className='text-lg font-semibold text-zinc-900'>Access management</h2>
-              <Button variant='ghost' size='sm' onClick={() => setAccessModalOpen(false)}>
+              <Button variant='ghost' size='sm' onClick={closeAccessModal}>
                 Close
               </Button>
             </div>
@@ -465,7 +631,7 @@ const MemoryDetailPage = () => {
                           <div className='flex items-center justify-between gap-2'>
                             <span className='font-mono text-xs text-zinc-800'>{principalText}</span>
                             <span className='rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-600'>
-                              {resolveUserLabel(principalText, roleValue)}
+                              {resolveUserLabel(principalText, roleValue, selfPrincipalText)}
                             </span>
                           </div>
                           <div className='flex flex-wrap items-center gap-2'>
@@ -499,11 +665,6 @@ const MemoryDetailPage = () => {
                               {accessBusyUser === principalText ? 'Removing...' : 'Remove'}
                             </Button>
                           </div>
-                          {isLauncher ? (
-                            <span className='text-[10px] text-zinc-500'>
-                              Launcher canister role is managed by the system.
-                            </span>
-                          ) : null}
                         </div>
                       )
                     })}
@@ -539,6 +700,11 @@ const MemoryDetailPage = () => {
               <div className='rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800'>
                 {confirmPrincipal}
               </div>
+              {confirmAction === 'update' && confirmUserRole ? (
+                <div className='text-xs text-zinc-600'>
+                  Role: <span className='font-semibold'>{confirmUserRole}</span>
+                </div>
+              ) : null}
               {confirmKeyword ? (
                 <div className='space-y-2'>
                   <p>
@@ -567,6 +733,61 @@ const MemoryDetailPage = () => {
               >
                 Yes
               </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {nameModalOpen ? (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
+          onClick={() => setNameModalOpen(false)}
+          role='presentation'
+        >
+          <div
+            className='w-[36rem] max-w-full rounded-2xl bg-white p-6 shadow-xl'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className='flex items-center justify-between'>
+              <h2 className='text-lg font-semibold text-zinc-900'>Edit name</h2>
+              <Button variant='ghost' size='sm' onClick={() => setNameModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <div className='mt-4 space-y-4'>
+              <div className='space-y-2'>
+                <label className='text-sm text-zinc-600'>Name</label>
+                <Input
+                  value={nameInput}
+                  onChange={(event) => setNameInput(event.target.value)}
+                  placeholder='Name'
+                  disabled={!identityState.isAuthenticated || nameSaving}
+                />
+              </div>
+              <div className='space-y-2'>
+                <label className='text-sm text-zinc-600'>Description</label>
+                <Input
+                  value={descriptionInput}
+                  onChange={(event) => setDescriptionInput(event.target.value)}
+                  placeholder='Description'
+                  disabled={!identityState.isAuthenticated || nameSaving}
+                />
+              </div>
+              {nameStatus ? (
+                <div className='rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700'>
+                  {nameStatus}
+                </div>
+              ) : null}
+              <div className='flex items-center justify-end gap-2'>
+                <Button variant='outline' onClick={() => setNameModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveName}
+                  disabled={!identityState.isAuthenticated || nameSaving}
+                >
+                  {nameSaving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

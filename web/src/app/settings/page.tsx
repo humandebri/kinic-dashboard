@@ -18,7 +18,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { useIdentityState } from '@/components/providers/identity-provider'
-import { useMemories } from '@/hooks/use-memories'
+import { useMemoriesState } from '@/components/providers/memories-provider'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 import { II_SESSION_TTL_NS } from '@/lib/ic-config'
 
@@ -34,7 +34,7 @@ const SESSION_TTL_OPTIONS = [
 
 const SettingsPage = () => {
   const identityState = useIdentityState()
-  const memories = useMemories(identityState.identity, identityState.isReady)
+  const memories = useMemoriesState()
   const { defaultMemoryId, setDefaultMemoryId } = useSelectedMemory()
   const [customCanisters, setCustomCanisters] = useState<string[]>([])
   const [newCanister, setNewCanister] = useState('')

@@ -15,38 +15,66 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import type { IdentityState } from '@/hooks/use-identity'
-import { type MemoryInstance, type MemoryState, useMemories } from '@/hooks/use-memories'
+import { useMemoriesState } from '@/components/providers/memories-provider'
+import { type MemoryInstance, type MemoryState } from '@/hooks/use-memories'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
-import { roleLabelMap } from '@/lib/access-control'
-import { fetchMemoryCycles, fetchMemoryUsers, fetchMemoryVersion } from '@/lib/memory'
+import { fetchMemoryStatus, type StatusForFrontend } from '@/lib/memory'
+import { fetchLauncherVersion, updateMemoryInstance } from '@/lib/launcher'
 
 const CUSTOM_CANISTERS_KEY = 'kinic.custom-canisters'
 
 const renderSkeletonRows = () => {
   return Array.from({ length: 3 }).map((_, index) => (
     <TableRow key={`skeleton-${index}`}>
-      <TableCell>
-        <Skeleton className='h-4 w-48' />
-      </TableCell>
-      <TableCell>
-        <Skeleton className='h-4 w-20' />
-      </TableCell>
-      <TableCell>
-        <Skeleton className='h-4 w-20' />
-      </TableCell>
-      <TableCell>
-        <Skeleton className='h-4 w-20' />
-      </TableCell>
+      {Array.from({ length: 10 }).map((_, cellIndex) => (
+        <TableCell key={`skeleton-${index}-${cellIndex}`}>
+          <Skeleton className={cellIndex === 0 ? 'h-4 w-48' : 'h-4 w-20'} />
+        </TableCell>
+      ))}
     </TableRow>
   ))
+}
+
+const parseNameMeta = (rawName: string | null) => {
+  if (!rawName) return { name: null, description: null }
+  const trimmed = rawName.trim()
+  if (!trimmed.startsWith('{')) return { name: rawName, description: null }
+  try {
+    const parsed: unknown = JSON.parse(trimmed)
+    if (typeof parsed === 'object' && parsed !== null) {
+      const nameValue = Reflect.get(parsed, 'name')
+      const descriptionValue = Reflect.get(parsed, 'description')
+      const name = typeof nameValue === 'string' ? nameValue : null
+      const description = typeof descriptionValue === 'string' ? descriptionValue : null
+      if (name || description) {
+        return { name: name ?? rawName, description }
+      }
+    }
+  } catch {
+    // Fall back to raw name.
+  }
+  return { name: rawName, description: null }
 }
 
 const renderMemoryRow = (
   memory: MemoryInstance,
   index: number,
   onSelect: (id: string) => void,
-  meta: { cycles: bigint | null; version: string | null; isLoading: boolean; error: string | null } | null,
+  statusEntry: {
+    status: StatusForFrontend | null
+    isLoading: boolean
+    error: string | null
+    access: 'ok' | 'no-access' | 'unknown'
+  } | null,
   formatCycles: (value: bigint | null) => string,
+  formatNat: (value: bigint | null) => string,
+  formatNatBillions: (value: bigint | null) => string,
+  formatNatMillions: (value: bigint | null) => string,
+  formatNatAuto: (value: bigint | null) => string,
+  latestVersion: string | null,
+  isUpdateEnabled: boolean,
+  isUpdating: boolean,
+  onUpdate: (memoryId: string) => void,
   permission: {
     label: string | null
     isLoading: boolean
@@ -57,6 +85,21 @@ const renderMemoryRow = (
 ) => {
   const principalText = memory.principalText ?? '--'
   const permissionLabel = permission?.label ?? (isAuthenticated ? 'unknown' : 'not connected')
+  const status = statusEntry?.status ?? null
+  const statusError = statusEntry?.error ?? null
+  const showStatusError = Boolean(statusError) && !statusEntry?.isLoading
+  const statusFallback = showStatusError ? '--' : status
+  const accessLabel = statusEntry?.access === 'no-access' ? 'no access' : null
+  const nameMeta = parseNameMeta(status?.name ?? null)
+  const memoryId = memory.principalText ?? null
+  const hasVersion = Boolean(status?.version && latestVersion)
+  const isOutdated = Boolean(
+    memoryId &&
+      latestVersion &&
+      status?.version &&
+      status.version.trim().length > 0 &&
+      status.version !== latestVersion
+  )
 
   return (
     <TableRow key={`${memory.state}-${principalText}-${index}`}>
@@ -85,28 +128,81 @@ const renderMemoryRow = (
         )}
       </TableCell>
       <TableCell className='font-mono text-xs text-zinc-700'>
-        {meta?.isLoading ? '...' : formatCycles(meta?.cycles ?? null)}
+        {statusEntry?.isLoading ? (
+          '...'
+        ) : showStatusError ? (
+          <span className='text-rose-500'>{statusError}</span>
+        ) : accessLabel ? (
+          <span className='text-zinc-400'>{accessLabel}</span>
+        ) : (
+          nameMeta.name ?? '--'
+        )}
       </TableCell>
       <TableCell className='font-mono text-xs text-zinc-700'>
-        {meta?.isLoading ? '...' : meta?.version ?? '--'}
+        {statusEntry?.isLoading ? '...' : nameMeta.description ?? '--'}
+      </TableCell>
+      <TableCell className='font-mono text-xs text-zinc-700'>
+        {statusEntry?.isLoading ? '...' : statusFallback?.version ?? '--'}
+      </TableCell>
+      <TableCell className='font-mono text-xs text-zinc-700'>
+        {statusEntry?.isLoading ? '...' : formatCycles(statusFallback?.cycles ?? null)}
+      </TableCell>
+      <TableCell className='font-mono text-xs text-zinc-700'>
+        {statusEntry?.isLoading
+          ? '...'
+          : formatNatBillions(statusFallback?.idle_cycles_burned_per_day ?? null)}
+      </TableCell>
+      <TableCell className='font-mono text-xs text-zinc-700'>
+        {statusEntry?.isLoading ? '...' : formatNatMillions(statusFallback?.freezing_threshold ?? null)}
+      </TableCell>
+      <TableCell className='font-mono text-xs text-zinc-700'>
+        {statusEntry?.isLoading ? '...' : formatNatAuto(statusFallback?.memory_size ?? null)}
+      </TableCell>
+      <TableCell className='font-mono text-xs text-zinc-700'>
+        {statusEntry?.isLoading ? (
+          '...'
+        ) : showStatusError || accessLabel ? (
+          '--'
+        ) : isOutdated && memoryId ? (
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-7 rounded-full px-2 text-xs'
+            onClick={() => onUpdate(memoryId)}
+            disabled={!isUpdateEnabled || isUpdating}
+          >
+            {isUpdating ? 'Updating...' : 'Update'}
+          </Button>
+        ) : hasVersion ? (
+          <span className='text-zinc-500'>Latest</span>
+        ) : (
+          '--'
+        )}
       </TableCell>
     </TableRow>
   )
 }
 
 const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
-  const { isLoading, memories, error, lastUpdated, refresh } = useMemories(
-    identityState.identity,
-    identityState.isReady
-  )
+  const { isLoading, memories, error, lastUpdated, refresh, memoryPermissions, ensureMemoryPermissions } =
+    useMemoriesState()
   const { setSelectedMemoryId } = useSelectedMemory()
   const [customCanisters, setCustomCanisters] = useState<string[]>([])
-  const [memoryMeta, setMemoryMeta] = useState<
-    Record<string, { cycles: bigint | null; version: string | null; isLoading: boolean; error: string | null }>
+  const [memoryStatus, setMemoryStatus] = useState<
+    Record<
+      string,
+      {
+        status: StatusForFrontend | null
+        isLoading: boolean
+        error: string | null
+        access: 'ok' | 'no-access' | 'unknown'
+        principal: string | null
+      }
+    >
   >({})
-  const [memoryPermissions, setMemoryPermissions] = useState<
-    Record<string, { label: string | null; isLoading: boolean; error: string | null; principal: string | null }>
-  >({})
+  const [launcherVersion, setLauncherVersion] = useState<string | null>(null)
+  const [launcherError, setLauncherError] = useState<string | null>(null)
+  const [updateBusy, setUpdateBusy] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const stored = localStorage.getItem(CUSTOM_CANISTERS_KEY)
@@ -120,6 +216,21 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
       // Ignore invalid stored data.
     }
   }, [])
+
+  useEffect(() => {
+    if (!identityState.isReady) return
+    fetchLauncherVersion(identityState.identity ?? undefined)
+      .then((version) => {
+        setLauncherVersion(version)
+        setLauncherError(null)
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : 'Failed to load launcher version.'
+        setLauncherVersion(null)
+        setLauncherError(message)
+      })
+  }, [identityState.identity, identityState.isReady])
 
   const lastUpdatedLabel = lastUpdated ? lastUpdated.toLocaleTimeString() : 'Not updated yet'
   const showAuthNotice = identityState.isReady && !identityState.isAuthenticated
@@ -143,83 +254,126 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
     return `${units.toFixed(2)}T`
   }
 
-  const loadMemoryMeta = async (memoryId: string) => {
-    setMemoryMeta((prev) => ({
-      ...prev,
-      [memoryId]: { cycles: null, version: null, isLoading: true, error: null }
-    }))
-    try {
-      const [cycles, version] = await Promise.all([
-        fetchMemoryCycles(identityState.identity ?? undefined, memoryId),
-        fetchMemoryVersion(identityState.identity ?? undefined, memoryId)
-      ])
-      setMemoryMeta((prev) => ({
-        ...prev,
-        [memoryId]: { cycles, version, isLoading: false, error: null }
-      }))
-    } catch (metaError) {
-      const message =
-        metaError instanceof Error ? metaError.message : 'Failed to load memory metadata.'
-      setMemoryMeta((prev) => ({
-        ...prev,
-        [memoryId]: { cycles: null, version: null, isLoading: false, error: message }
-      }))
-    }
+  const formatNat = (value: bigint | null) => {
+    if (value === null) return '--'
+    return value.toString()
   }
 
-  const loadMemoryPermission = async (memoryId: string) => {
-    const principalText = identityState.principalText
-    setMemoryPermissions((prev) => ({
+  const formatScaled = (value: bigint | null, unit: string, scale: bigint, fractionDigits: number) => {
+    if (value === null) return '--'
+    const whole = value / scale
+    const fraction = value % scale
+    if (fraction === 0n) return `${whole.toString()}${unit}`
+    const pad = fraction.toString().padStart(fractionDigits, '0')
+    const trimmed = pad.slice(0, 2)
+    return `${whole.toString()}.${trimmed}${unit}`
+  }
+
+  const formatNatBillions = (value: bigint | null) => {
+    return formatScaled(value, 'B', 1_000_000_000n, 9)
+  }
+
+  const formatNatMillions = (value: bigint | null) => {
+    return formatScaled(value, 'M', 1_000_000n, 6)
+  }
+
+  const formatNatAuto = (value: bigint | null) => {
+    if (value === null) return '--'
+    const abs = value < 0n ? -value : value
+    if (abs >= 1_000_000_000n) return formatScaled(value, 'B', 1_000_000_000n, 9)
+    if (abs >= 1_000_000n) return formatScaled(value, 'M', 1_000_000n, 6)
+    if (abs >= 1_000n) return formatScaled(value, 'K', 1_000n, 3)
+    return value.toString()
+  }
+
+  const loadMemoryStatus = async (memoryId: string, principalText: string) => {
+    setMemoryStatus((prev) => ({
       ...prev,
-      [memoryId]: { label: null, isLoading: true, error: null, principal: principalText ?? null }
+      [memoryId]: {
+        status: null,
+        isLoading: true,
+        error: null,
+        access: 'unknown',
+        principal: principalText
+      }
     }))
-
-    if (!identityState.isAuthenticated || !principalText) {
-      setMemoryPermissions((prev) => ({
-        ...prev,
-        [memoryId]: { label: 'not connected', isLoading: false, error: null, principal: principalText ?? null }
-      }))
-      return
-    }
-
     try {
-      const users = await fetchMemoryUsers(identityState.identity ?? undefined, memoryId)
-      const matched = users.find(([userText]) => userText === principalText)
-      const label = matched ? roleLabelMap[matched[1]] ?? 'unknown' : 'no access'
-      setMemoryPermissions((prev) => ({
-        ...prev,
-        [memoryId]: { label, isLoading: false, error: null, principal: principalText }
-      }))
-    } catch (permissionError) {
-      const message = permissionError instanceof Error ? permissionError.message : 'Failed to load permission.'
-      const isInvalidUser =
-        message.includes('Invalid user') || message.includes('IC0406') || message.includes('invalid user')
-      setMemoryPermissions((prev) => ({
+      const status = await fetchMemoryStatus(identityState.identity ?? undefined, memoryId)
+      setMemoryStatus((prev) => ({
         ...prev,
         [memoryId]: {
-          label: isInvalidUser ? 'no access' : 'unknown',
+          status,
           isLoading: false,
-          error: message,
+          error: null,
+          access: 'ok',
+          principal: principalText
+        }
+      }))
+    } catch (statusError) {
+      const message =
+        statusError instanceof Error ? statusError.message : 'Failed to load memory status.'
+      const isInvalidUser =
+        message.includes('Invalid user') || message.includes('IC0406') || message.includes('invalid user')
+      setMemoryStatus((prev) => ({
+        ...prev,
+        [memoryId]: {
+          status: null,
+          isLoading: false,
+          error: isInvalidUser ? null : message,
+          access: isInvalidUser ? 'no-access' : 'unknown',
           principal: principalText
         }
       }))
     }
   }
 
+  const handleUpdateInstance = async (memoryId: string) => {
+    if (!identityState.identity || !identityState.principalText) return
+    setUpdateBusy((prev) => ({ ...prev, [memoryId]: true }))
+    try {
+      await updateMemoryInstance(identityState.identity, memoryId)
+      await loadMemoryStatus(memoryId, identityState.principalText)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update instance.'
+      setMemoryStatus((prev) => ({
+        ...prev,
+        [memoryId]: {
+          status: prev[memoryId]?.status ?? null,
+          isLoading: false,
+          error: message,
+          access: prev[memoryId]?.access ?? 'unknown',
+          principal: identityState.principalText
+        }
+      }))
+    } finally {
+      setUpdateBusy((prev) => ({ ...prev, [memoryId]: false }))
+    }
+  }
+
   useEffect(() => {
+    if (!identityState.isAuthenticated || !identityState.identity || !identityState.principalText) {
+      return
+    }
+    const principalText = identityState.principalText
     const targets = mergedMemories
       .map((memory) => memory.principalText)
       .filter((value): value is string => Boolean(value))
     targets.forEach((memoryId) => {
-      if (!memoryMeta[memoryId]) {
-        loadMemoryMeta(memoryId)
-      }
-      const permissionEntry = memoryPermissions[memoryId]
-      if (!permissionEntry || permissionEntry.principal !== identityState.principalText) {
-        loadMemoryPermission(memoryId)
+      const entry = memoryStatus[memoryId]
+      if (!entry || entry.principal !== principalText) {
+        loadMemoryStatus(memoryId, principalText)
       }
     })
-  }, [mergedMemories, identityState.identity, identityState.principalText, memoryMeta, memoryPermissions])
+    ensureMemoryPermissions(targets)
+  }, [
+    mergedMemories,
+    memoryStatus,
+    ensureMemoryPermissions,
+    identityState.identity,
+    identityState.isAuthenticated,
+    identityState.principalText
+  ])
 
   return (
     <div className='flex flex-col gap-6'>
@@ -252,22 +406,28 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
               <TableRow>
                 <TableHead>Memory ID</TableHead>
                 <TableHead>Permission</TableHead>
-                <TableHead>Cycles</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead>Version</TableHead>
+                <TableHead>Cycles</TableHead>
+                <TableHead>Idle/day</TableHead>
+                <TableHead>Freezing</TableHead>
+                <TableHead>Mem size</TableHead>
+                <TableHead>Update</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && memories.length === 0 ? renderSkeletonRows() : null}
               {error ? (
                 <TableRow>
-                  <TableCell colSpan={4} className='text-rose-500'>
+                  <TableCell colSpan={10} className='text-rose-500'>
                     {error}
                   </TableCell>
                 </TableRow>
               ) : null}
               {showEmpty ? (
                 <TableRow>
-                  <TableCell colSpan={4} className='text-muted-foreground'>
+                  <TableCell colSpan={10} className='text-muted-foreground'>
                     No memories yet.
                   </TableCell>
                 </TableRow>
@@ -278,8 +438,16 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
                       memory,
                       index,
                       setSelectedMemoryId,
-                      memory.principalText ? memoryMeta[memory.principalText] ?? null : null,
+                      memory.principalText ? memoryStatus[memory.principalText] ?? null : null,
                       formatCycles,
+                      formatNat,
+                      formatNatBillions,
+                      formatNatMillions,
+                      formatNatAuto,
+                      launcherVersion,
+                      Boolean(identityState.identity && identityState.isAuthenticated),
+                      Boolean(memory.principalText && updateBusy[memory.principalText]),
+                      handleUpdateInstance,
                       memory.principalText ? memoryPermissions[memory.principalText] ?? null : null,
                       identityState.isAuthenticated
                     )
@@ -287,11 +455,11 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
                 : null}
             </TableBody>
           </Table>
+          {launcherError ? (
+            <div className='text-xs text-rose-500'>{launcherError}</div>
+          ) : null}
         </CardContent>
       </Card>
-      <div className='rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600'>
-        Memory names and descriptions are not exposed by the canister API yet, so IDs, state, cycles, and version are shown.
-      </div>
     </div>
   )
 }

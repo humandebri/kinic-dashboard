@@ -175,6 +175,7 @@ export type LauncherActor = {
   update_instance_with_option: (instance_pid_str: string, option: boolean) => Promise<SimpleResult>
   get_remaining_cycles: (instance_pid_str: string) => Promise<bigint>
   get_instance_version: () => Promise<InstanceVersionEntry[]>
+  get_version: () => Promise<string>
   get_marketed_instance_status: (instance_pid_str: string) => Promise<MarketedInstanceStatus>
   lock_instance_for_downloading: (instance_pid_str: string) => Promise<SimpleResult>
   get_shared_memory: () => Promise<Principal[]>
@@ -252,6 +253,7 @@ const launcherIdlFactory: IDL.InterfaceFactory = ({ IDL }) => {
     update_instance_with_option: IDL.Func([IDL.Text, IDL.Bool], [ResultText], []),
     get_remaining_cycles: IDL.Func([IDL.Text], [IDL.Nat], ['query']),
     get_instance_version: IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))], ['query']),
+    get_version: IDL.Func([], [IDL.Text], ['query']),
     get_marketed_instance_status: IDL.Func([IDL.Text], [MarketedInstanceStatus], ['query']),
     lock_instance_for_downloading: IDL.Func([IDL.Text], [ResultText], []),
     get_shared_memory: IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
@@ -326,6 +328,11 @@ export const fetchInstanceVersions = async (identity?: Identity) => {
   return entries
     .map((entry) => normalizeVersionEntry(entry))
     .filter((entry): entry is InstanceVersionEntry => entry !== null)
+}
+
+export const fetchLauncherVersion = async (identity?: Identity) => {
+  const actor = await createLauncherActor(identity)
+  return actor.get_version()
 }
 
 export const fetchMarketedStatus = async (

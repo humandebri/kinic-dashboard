@@ -14,12 +14,12 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 
 import { transactionData } from '@/data/dashboard-transactions'
 import { useIdentityState } from '@/components/providers/identity-provider'
-import { useMemories } from '@/hooks/use-memories'
+import { useMemoriesState } from '@/components/providers/memories-provider'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 
 const DashboardShell = () => {
   const identityState = useIdentityState()
-  const memories = useMemories(identityState.identity, identityState.isReady)
+  const memories = useMemoriesState()
   const { setSelectedMemoryId } = useSelectedMemory()
 
   return (

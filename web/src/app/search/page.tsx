@@ -15,7 +15,7 @@ import { MultiSelectComboboxInput } from '@/components/ui/multi-select-combobox-
 import SearchHistory from '@/components/search/search-history'
 import SearchResults from '@/components/search/search-results'
 import { useIdentityState } from '@/components/providers/identity-provider'
-import { useMemories } from '@/hooks/use-memories'
+import { useMemoriesState } from '@/components/providers/memories-provider'
 import { useSelectedMemory } from '@/hooks/use-selected-memory'
 import { createMemoryActor } from '@/lib/memory'
 import { fetchEmbedding } from '@/lib/embedding'
@@ -70,7 +70,7 @@ const remapCitations = (content: string, order: number[]) => {
 const SearchPage = () => {
   const identityState = useIdentityState()
   const { selectedMemoryId } = useSelectedMemory()
-  const { memories } = useMemories(identityState.identity, identityState.isReady)
+  const { memories } = useMemoriesState()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ParsedResult[]>([])
   const [status, setStatus] = useState<string | null>(null)

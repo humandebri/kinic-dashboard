@@ -11,7 +11,7 @@ const MemoriesPage = () => {
   const identityState = useIdentityState()
 
   return (
-    <AppShell pageTitle='Memories' identityState={identityState}>
+    <AppShell pageTitle='Memories' identityState={identityState} fullWidth>
       <MemoriesPanel identityState={identityState} />
     </AppShell>
   )
