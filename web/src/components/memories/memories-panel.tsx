@@ -5,7 +5,7 @@
 
 import { RefreshCw } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -88,7 +88,7 @@ const renderMemoryRow = (
   const status = statusEntry?.status ?? null
   const statusError = statusEntry?.error ?? null
   const showStatusError = Boolean(statusError) && !statusEntry?.isLoading
-  const statusFallback = showStatusError ? '--' : status
+  const statusFallback = showStatusError ? null : status
   const accessLabel = statusEntry?.access === 'no-access' ? 'no access' : null
   const nameMeta = parseNameMeta(status?.name ?? null)
   const memoryId = memory.principalText ?? null
@@ -235,17 +235,21 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
   const lastUpdatedLabel = lastUpdated ? lastUpdated.toLocaleTimeString() : 'Not updated yet'
   const showAuthNotice = identityState.isReady && !identityState.isAuthenticated
   const showEmpty = !isLoading && !error && memories.length === 0 && customCanisters.length === 0 && !showAuthNotice
-  const ownedSet = new Set(
-    memories
-      .map((memory) => memory.principalText)
-      .filter((value): value is string => Boolean(value))
-  )
-  const mergedMemories: MemoryInstance[] = [
-    ...memories,
-    ...customCanisters
-      .filter((id) => !ownedSet.has(id))
-      .map((id) => ({ state: 'Custom' as MemoryState, principalText: id, detail: 'Saved manually' }))
-  ]
+  const ownedSet = useMemo(() => {
+    return new Set(
+      memories
+        .map((memory) => memory.principalText)
+        .filter((value): value is string => Boolean(value))
+    )
+  }, [memories])
+  const mergedMemories: MemoryInstance[] = useMemo(() => {
+    return [
+      ...memories,
+      ...customCanisters
+        .filter((id) => !ownedSet.has(id))
+        .map((id) => ({ state: 'Custom' as MemoryState, principalText: id, detail: 'Saved manually' }))
+    ]
+  }, [customCanisters, memories, ownedSet])
 
   const formatCycles = (value: bigint | null) => {
     if (value === null) return '--'
@@ -286,7 +290,7 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
     return value.toString()
   }
 
-  const loadMemoryStatus = async (memoryId: string, principalText: string) => {
+  const loadMemoryStatus = useCallback(async (memoryId: string, principalText: string) => {
     setMemoryStatus((prev) => ({
       ...prev,
       [memoryId]: {
@@ -325,7 +329,7 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
         }
       }))
     }
-  }
+  }, [identityState.identity])
 
   const handleUpdateInstance = async (memoryId: string) => {
     if (!identityState.identity || !identityState.principalText) return
@@ -372,7 +376,8 @@ const MemoriesPanel = ({ identityState }: { identityState: IdentityState }) => {
     ensureMemoryPermissions,
     identityState.identity,
     identityState.isAuthenticated,
-    identityState.principalText
+    identityState.principalText,
+    loadMemoryStatus
   ])
 
   return (

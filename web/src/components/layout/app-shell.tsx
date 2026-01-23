@@ -122,7 +122,8 @@ const AppShell = ({
 }: AppShellProps) => {
   const mounted = useMounted()
   const balance = useBalance()
-  const { memories, memoryPermissions, ensureMemoryPermissions } = useMemoriesState()
+  const { memories, isLoading: memoriesLoading, memoryPermissions, ensureMemoryPermissions } =
+    useMemoriesState()
   const { selectedMemoryId, setSelectedMemoryId } = useSelectedMemory()
   const router = useRouter()
   const [customCanisters, setCustomCanisters] = useState<string[]>([])
@@ -386,7 +387,7 @@ const AppShell = ({
                       disabled={!memoryOptions.length}
                     >
                       <SelectTrigger className='h-7 w-[320px] border-none bg-transparent px-0 shadow-none focus:ring-0'>
-                        <SelectValue placeholder={memories.isLoading ? 'Loading…' : 'Select'} />
+                      <SelectValue placeholder={memoriesLoading ? 'Loading…' : 'Select'} />
                       </SelectTrigger>
                       <SelectContent>
                         {memoryOptions.map((option) => (

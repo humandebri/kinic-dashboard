@@ -73,7 +73,7 @@ const InsertPage = () => {
 
   useEffect(() => {
     setIsCompleted(false)
-  }, [selectedMemoryId])
+  }, [selectedMemoryId, setIsCompleted])
 
   const isWithinLimit = markdown.length <= MAX_TOTAL_CHARS
   const canSubmit = Boolean(

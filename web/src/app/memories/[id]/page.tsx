@@ -107,7 +107,6 @@ const MemoryDetailPage = () => {
   const setConfirmInput = useMemoryDetailStore((state) => state.setConfirmInput)
   const confirmHandler = useMemoryDetailStore((state) => state.confirmHandler)
   const setConfirmHandler = useMemoryDetailStore((state) => state.setConfirmHandler)
-  const isRegisteringShared = useMemoryDetailStore((state) => state.isRegisteringShared)
   const setIsRegisteringShared = useMemoryDetailStore((state) => state.setIsRegisteringShared)
   const sharedStatus = useMemoryDetailStore((state) => state.sharedStatus)
   const setSharedStatus = useMemoryDetailStore((state) => state.setSharedStatus)
@@ -242,7 +241,6 @@ const MemoryDetailPage = () => {
       setSharedUsers([])
       setSharedUsersError('Login required to view shared users.')
     } else {
-      const principalText = identityState.identity.getPrincipal().toText()
       fetchMemoryUsers(identityState.identity, memoryId)
         .then((users) => {
           setSharedUsers(users)
@@ -262,7 +260,15 @@ const MemoryDetailPage = () => {
           setSharedUsersError(message)
         })
     }
-  }, [identityState.identity, memoryId])
+  }, [
+    identityState.identity,
+    memoryId,
+    setRoleSelections,
+    setSharedError,
+    setSharedMemories,
+    setSharedUsers,
+    setSharedUsersError
+  ])
 
   useEffect(() => {
     if (!memoryId) {
