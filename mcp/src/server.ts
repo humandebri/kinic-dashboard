@@ -3,6 +3,9 @@
 // Why: Keep MCP thin; identity stays in CLI, no canister storage or auth in MCP.
 
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -11,6 +14,13 @@ import {
   CallToolResult,
   ListToolsRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
+
+type RawToolArgs = {
+  memory_id: string;
+  query: string;
+  identity_mode?: 'dfx' | 'ii' | 'anonymous';
+  identity?: string;
+};
 
 type ToolArgs = {
   memory_id: string;
@@ -31,6 +41,11 @@ type SearchOutput = {
   results: SearchResult[];
 };
 
+type McpConfig = {
+  identity_mode?: 'dfx' | 'ii' | 'anonymous';
+  identity?: string;
+};
+
 type CommandResult = {
   stdout: string;
   stderr: string;
@@ -39,6 +54,7 @@ type CommandResult = {
 
 const TOOL_NAME = 'memory.search';
 const CLI_COMMAND = 'kinic-cli';
+const DEFAULT_CONFIG_PATH = join(homedir(), '.config', 'kinic', 'mcp.json');
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -59,7 +75,25 @@ function isSearchResult(value: unknown): value is SearchResult {
   return isNumber(value['score']) && isNonEmptyString(value['text']);
 }
 
-function parseToolArgs(value: unknown): ToolArgs {
+function loadConfig(): McpConfig {
+  if (!existsSync(DEFAULT_CONFIG_PATH)) {
+    return {};
+  }
+  const raw = readFileSync(DEFAULT_CONFIG_PATH, 'utf8');
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed)) {
+    throw new Error('mcp.json must be a JSON object');
+  }
+  const modeValue = parsed['identity_mode'];
+  const identityValue = parsed['identity'];
+  const identityMode = resolveIdentityMode(
+    typeof modeValue === 'string' ? modeValue : undefined
+  );
+  const identity = isNonEmptyString(identityValue) ? identityValue : undefined;
+  return { identity_mode: identityMode, identity };
+}
+
+function parseToolArgs(value: unknown): RawToolArgs {
   if (!isRecord(value)) {
     throw new Error('arguments must be an object');
   }
@@ -76,6 +110,7 @@ function parseToolArgs(value: unknown): ToolArgs {
 
   const identityModeValue = value['identity_mode'];
   if (
+    identityModeValue !== undefined &&
     identityModeValue !== 'dfx' &&
     identityModeValue !== 'ii' &&
     identityModeValue !== 'anonymous'
@@ -84,15 +119,41 @@ function parseToolArgs(value: unknown): ToolArgs {
   }
 
   const identityValue = value['identity'];
-  if (identityModeValue !== 'anonymous' && !isNonEmptyString(identityValue)) {
-    throw new Error('identity is required');
-  }
 
   return {
     memory_id: memoryIdValue,
     query: queryValue,
     identity_mode: identityModeValue,
     identity: isNonEmptyString(identityValue) ? identityValue : undefined
+  };
+}
+
+function resolveIdentityMode(value: string | undefined): 'dfx' | 'ii' | 'anonymous' | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'dfx' || normalized === 'ii' || normalized === 'anonymous') {
+    return normalized;
+  }
+  return undefined;
+}
+
+function resolveToolArgs(args: RawToolArgs): ToolArgs {
+  const config = loadConfig();
+  const identityMode = args.identity_mode ?? config.identity_mode;
+  if (!identityMode) {
+    throw new Error('identity_mode is required (or set ~/.config/kinic/mcp.json)');
+  }
+  const identity = args.identity ?? config.identity;
+  if (identityMode !== 'anonymous' && !isNonEmptyString(identity)) {
+    throw new Error('identity is required (or set ~/.config/kinic/mcp.json)');
+  }
+  return {
+    memory_id: args.memory_id,
+    query: args.query,
+    identity_mode: identityMode,
+    identity: isNonEmptyString(identity) ? identity : undefined
   };
 }
 
@@ -211,7 +272,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'dfx identity name or identity.json path.'
             }
           },
-          required: ['memory_id', 'query', 'identity_mode']
+          required: ['memory_id', 'query']
         },
         outputSchema: {
           type: 'object',
@@ -245,7 +306,8 @@ server.setRequestHandler(
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
 
-    const args = parseToolArgs(request.params.arguments);
+    const parsedArgs = parseToolArgs(request.params.arguments);
+    const args = resolveToolArgs(parsedArgs);
     const cliArgs = buildCliArgs(args);
     const result = await runCommand(CLI_COMMAND, cliArgs);
 

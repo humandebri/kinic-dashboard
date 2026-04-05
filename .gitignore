@@ -35,3 +35,6 @@ pylate-index/
 #web
 .next/
 node_modules/
+
+# local worktree not part of this repository
+fix-methods/

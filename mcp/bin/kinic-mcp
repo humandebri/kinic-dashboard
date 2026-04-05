@@ -1,0 +1,11 @@
+#!/bin/sh
+# Where: MCP launcher script for kinic-cli/mcp.
+# What: Resolves the server path relative to this script and launches Node.
+# Why: Avoids hardcoding absolute paths in MCP client configs.
+
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SERVER_PATH="$SCRIPT_DIR/../dist/server.js"
+
+exec node "$SERVER_PATH"
